@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auteur Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammerjs/2.0.8/hammer.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#0a0a0f;--surface:#111118;--surface2:#18181f;--border:#2a2a38;--accent:#e8c547;--accent2:#7b6ef6;--accent3:#ef6c57;--text:#f0eff8;--muted:#7a798c;--font-head:'Syne',sans-serif;--font-mono:'DM Mono',monospace;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4;}
+header{position:relative;z-index:1;padding:40px 48px 32px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;gap:24px;}
+.header-left h1{font-family:var(--font-head);font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1px;line-height:1;background:linear-gradient(135deg,var(--text) 40%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-left p{font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:2px;text-transform:uppercase;}
+.header-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);background:rgba(232,197,71,.08);border:1px solid rgba(232,197,71,.2);padding:6px 14px;border-radius:2px;white-space:nowrap;}
+main{position:relative;z-index:1;padding:40px 48px;max-width:1440px;margin:0 auto;}
+#upload-section{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:0;}
+.upload-card{border:1px dashed var(--border);border-radius:4px;padding:64px 80px;text-align:center;position:relative;overflow:hidden;cursor:pointer;transition:border-color .3s,background .3s;width:100%;max-width:580px;background:var(--surface);}
+.upload-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(232,197,71,.04) 0%,transparent 70%);pointer-events:none;}
+.upload-card:hover,.upload-card.drag-over{border-color:var(--accent);background:rgba(232,197,71,.03);}
+.upload-icon{font-size:48px;margin-bottom:20px;display:block;filter:grayscale(.4);}
+.upload-card h2{font-family:var(--font-head);font-size:22px;font-weight:700;margin-bottom:8px;}
+.upload-card p{font-size:12px;color:var(--muted);margin-bottom:28px;line-height:1.7;}
+.upload-btn{display:inline-block;background:var(--accent);color:#0a0a0f;font-family:var(--font-mono);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 28px;border-radius:2px;cursor:pointer;border:none;transition:opacity .2s,transform .15s;}
+.upload-btn:hover{opacity:.85;transform:translateY(-1px);}
+#file-input{display:none;}
+#log-panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:28px 32px;margin-bottom:32px;position:relative;overflow:hidden;}
+#log-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.log-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.log-panel-title{font-family:var(--font-head);font-size:16px;font-weight:700;}
+.tab-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;}
+.tab-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 18px;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:background .2s,color .2s;}
+.tab-btn.active{background:var(--accent2);color:#fff;}
+.log-fields{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:end;}
+.log-field label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;}
+.log-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:10px 14px;outline:none;transition:border-color .2s;color-scheme:dark;}
+.log-field input:focus{border-color:var(--accent2);}
+.log-field input::placeholder{color:var(--muted);}
+.log-submit-btn{background:var(--accent2);color:#fff;font-family:var(--font-mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:10px 20px;border:none;border-radius:2px;cursor:pointer;transition:opacity .2s,transform .15s;white-space:nowrap;}
+.log-submit-btn:hover{opacity:.85;transform:translateY(-1px);}
+.log-submit-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+#import-pane{display:none;}
+#log-pane{display:block;}
+#progress-section{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:24px;text-align:center;}
+.progress-ring{width:120px;height:120px;position:relative;}
+.progress-ring svg{transform:rotate(-90deg);}
+.progress-ring circle{fill:none;stroke-width:3;}
+.progress-ring .track{stroke:var(--border);}
+.progress-ring .fill{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .3s;}
+.progress-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:24px;font-weight:800;}
+.progress-label{font-size:12px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.progress-current{font-size:13px;color:var(--text);max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#dashboard-section{display:none;}
+.section-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:28px 32px;position:relative;overflow:hidden;}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.card:nth-child(1)::after{background:var(--accent);}
+.card:nth-child(2)::after{background:var(--accent2);}
+.card:nth-child(3)::after{background:var(--accent3);}
+.card-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.card-value{font-family:var(--font-head);font-size:44px;font-weight:800;line-height:1;letter-spacing:-2px;}
+.card:nth-child(1) .card-value{color:var(--accent);}
+.card:nth-child(2) .card-value{color:var(--accent2);}
+.card:nth-child(3) .card-value{color:var(--accent3);}
+.card-sub{font-size:11px;color:var(--muted);margin-top:6px;}
+.persona-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:28px 32px;margin-bottom:40px;position:relative;overflow:hidden;display:flex;gap:28px;align-items:flex-start;}
+.persona-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2),var(--accent3));}
+.persona-icon{font-size:40px;flex-shrink:0;margin-top:2px;}
+.persona-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.persona-title{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:10px;background:linear-gradient(90deg,var(--text) 60%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.persona-desc{font-size:13px;color:var(--muted);line-height:1.7;max-width:680px;}
+.persona-desc strong{color:var(--text);font-weight:500;}
+.persona-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.persona-tag{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:2px;border:1px solid;}
+.insights-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:40px;}
+.insight-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:24px 28px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;}
+.insight-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--insight-color,var(--accent)),transparent);opacity:.6;}
+.insight-header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.insight-name{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);}
+.insight-badge{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:2px;white-space:nowrap;}
+.insight-value{font-family:var(--font-head);font-size:36px;font-weight:800;letter-spacing:-1.5px;line-height:1;color:var(--insight-color,var(--accent));}
+.insight-desc{font-size:12px;color:var(--muted);line-height:1.65;}
+.insight-desc strong{color:var(--text);font-weight:500;}
+.comfort-bar-wrap{margin-top:4px;background:var(--border);border-radius:2px;height:4px;overflow:hidden;}
+.comfort-bar-fill{height:100%;border-radius:2px;background:var(--insight-color,var(--accent));transition:width 1s cubic-bezier(.4,0,.2,1);}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:40px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:28px;}
+.chart-card.wide{grid-column:span 2;}
+.chart-title{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:20px;color:var(--text);display:flex;align-items:center;gap:8px;}
+.chart-dot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.chart-container{position:relative;height:240px;}
+.chart-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.zoom-reset-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--border);padding:5px 12px;border-radius:2px;cursor:pointer;transition:color .2s,border-color .2s;}
+.zoom-reset-btn:hover{color:var(--accent3);border-color:var(--accent3);}
+.zoom-hint{font-size:9px;color:var(--muted);letter-spacing:1px;}
+.heatmap-wrap{padding:4px 0 8px;overflow-x:auto;}
+.heatmap-grid{display:grid;grid-template-columns:56px repeat(24,1fr);gap:4px;min-width:500px;}
+.hm-label{font-size:9px;color:var(--muted);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;letter-spacing:1px;text-transform:uppercase;}
+.hm-col-label{font-size:9px;color:var(--muted);text-align:center;letter-spacing:.5px;}
+.hm-cell{aspect-ratio:1;border-radius:2px;background:var(--surface2);transition:transform .15s;cursor:default;}
+.hm-cell:hover{transform:scale(1.3);z-index:5;}
+.hm-legend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;color:var(--muted);}
+.hm-legend-swatch{display:flex;gap:3px;}
+.hm-legend-swatch span{width:14px;height:14px;border-radius:2px;}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:40px;}
+.table-header{padding:20px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.table-title{font-family:var(--font-head);font-size:14px;font-weight:700;}
+.table-count{font-size:11px;color:var(--muted);}
+.table-wrap{overflow-x:auto;max-height:440px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead{position:sticky;top:0;z-index:2;background:var(--surface2);}
+th{padding:12px 16px;text-align:left;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:12px 16px;border-bottom:1px solid rgba(42,42,56,.5);vertical-align:middle;white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.rating-pill{display:inline-block;padding:3px 10px;border-radius:2px;font-size:11px;font-weight:500;min-width:36px;text-align:center;}
+.rating-high{background:rgba(232,197,71,.12);color:var(--accent);}
+.rating-mid{background:rgba(123,110,246,.12);color:var(--accent2);}
+.rating-low{background:rgba(239,108,87,.12);color:var(--accent3);}
+.genre-tag{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:2px;font-size:10px;color:var(--muted);margin-right:4px;margin-bottom:2px;}
+.data-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:32px;}
+.ctrl-btn{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 16px;border-radius:2px;cursor:pointer;transition:border-color .2s,color .2s;}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--accent);}
+.ctrl-btn.danger:hover{border-color:var(--accent3);color:var(--accent3);}
+#error-bar,#success-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:2px;font-size:12px;z-index:100;display:none;max-width:500px;text-align:center;}
+#error-bar{background:rgba(239,108,87,.1);border:1px solid var(--accent3);color:var(--accent3);}
+#success-bar{background:rgba(123,110,246,.12);border:1px solid var(--accent2);color:var(--accent2);}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+@media(max-width:900px){header,main{padding:24px;}.cards-grid,.insights-grid{grid-template-columns:1fr;}.charts-grid{grid-template-columns:1fr;}.chart-card.wide{grid-column:span 1;}.upload-card{padding:40px 28px;}}
+@media(max-width:780px){.log-fields{grid-template-columns:1fr 1fr;}.log-fields>*:first-child{grid-column:span 2;}}
+@media(max-width:480px){.log-fields{grid-template-columns:1fr;}.log-fields>*:first-child{grid-column:span 1;}.persona-card{flex-direction:column;gap:12px;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Auteur Engine</h1>
+    <p>Behavioral Analytics of Your Film Consumption</p>
+  </div>
+  <span class="header-tag">Cinema Intelligence v5.0</span>
+</header>
+
+<main>
+
+  <!-- ENTRY PANEL -->
+  <div id="upload-section">
+
+    <div style="max-width:720px;width:100%;margin:0 auto 24px;">
+      <div style="display:flex;gap:12px;align-items:flex-end;">
+        <div style="flex:1;">
+          <label for="api-key-input" style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;">TMDb API Key</label>
+          <input type="password" id="api-key-input" placeholder="Paste your TMDb v3 key…"
+            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:11px 16px;outline:none;color-scheme:dark;"/>
+        </div>
+        <button class="log-submit-btn" onclick="saveApiKey()" style="height:42px;background:var(--surface);border:1px solid var(--border);color:var(--muted);">Save Key</button>
+      </div>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px;">Saved in your browser's local storage — persists across sessions. Get one free at <span style="color:var(--accent)">themoviedb.org/settings/api</span></p>
+    </div>
+
+    <div style="max-width:720px;width:100%;margin:0 auto 20px;">
+      <div class="tab-toggle">
+        <button class="tab-btn active" id="tab-log" onclick="switchTab('log')">✦ Log a Movie</button>
+        <button class="tab-btn" id="tab-import" onclick="switchTab('import')">↑ Import CSV</button>
+      </div>
+    </div>
+
+    <div id="log-pane" style="max-width:720px;width:100%;margin:0 auto;">
+      <div id="log-panel" style="margin-bottom:0;">
+        <div class="log-panel-header">
+          <span class="log-panel-title">Log a Film</span>
+          <span style="font-size:10px;color:var(--muted);">TMDb enriches automatically · Saved to Firestore</span>
+        </div>
+        <div class="log-fields">
+          <div class="log-field"><label for="log-title">Movie Title</label><input type="text" id="log-title" placeholder="e.g. Mulholland Drive"/></div>
+          <div class="log-field"><label for="log-date">Watch Date</label><input type="date" id="log-date"/></div>
+          <div class="log-field"><label for="log-time">Watch Time <span style="opacity:.5">(optional)</span></label><input type="time" id="log-time"/></div>
+          <div class="log-field"><label for="log-rating">Rating (0–10)</label><input type="number" id="log-rating" min="0" max="10" step="0.5" placeholder="7.5"/></div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+          <button class="log-submit-btn" id="log-submit-btn" onclick="submitLogEntry()">Log Movie</button>
+          <span id="log-status" style="font-size:11px;color:var(--muted);"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="import-pane" style="max-width:720px;width:100%;margin:0 auto;">
+      <div class="upload-card" id="drop-zone">
+        <span class="upload-icon">🎬</span>
+        <h2>Drop your Letterboxd CSV</h2>
+        <p>Export from Letterboxd → Settings → Import &amp; Export → Export Your Data<br>Upload <strong>watched.csv</strong> — data appends, no duplicates.</p>
+        <label class="upload-btn" for="file-input">Choose CSV File</label>
+        <input type="file" id="file-input" accept=".csv">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="progress-section">
+    <div class="progress-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="54"/>
+        <circle class="fill" id="progress-circle" cx="60" cy="60" r="54" stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+      </svg>
+      <div class="progress-pct" id="progress-pct">0%</div>
+    </div>
+    <div class="progress-label">Fetching TMDb data &amp; saving to Firestore</div>
+    <div class="progress-current" id="progress-current">Initialising…</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard-section">
+
+    <div class="data-controls">
+      <button class="ctrl-btn" onclick="showEntryPanel()">✦ Log New Film</button>
+      <button class="ctrl-btn" onclick="exportData()">↓ Export JSON</button>
+      <button class="ctrl-btn danger" onclick="clearAllData()">✕ Clear All Data</button>
+      <span id="last-updated" style="font-size:10px;color:var(--muted);margin-left:auto;"></span>
+    </div>
+
+    <div class="section-label">Your Viewing Persona</div>
+    <div class="persona-card">
+      <div class="persona-icon" id="persona-icon">🎬</div>
+      <div>
+        <div class="persona-label">Behavioral Profile</div>
+        <div class="persona-title" id="persona-title">Analysing your taste…</div>
+        <div class="persona-desc" id="persona-desc">Log or import films to generate your profile.</div>
+        <div class="persona-tags" id="persona-tags"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Insights</div>
+    <div class="insights-grid" id="insights-grid"></div>
+
+    <div class="section-label">Summary</div>
+    <div class="cards-grid">
+      <div class="card"><div class="card-label">Total Films Watched</div><div class="card-value" id="stat-total">—</div><div class="card-sub">across all sources</div></div>
+      <div class="card"><div class="card-label">Avg User Rating</div><div class="card-value" id="stat-rating">—</div><div class="card-sub">out of 10</div></div>
+      <div class="card"><div class="card-label">Avg Runtime</div><div class="card-value" id="stat-runtime">—</div><div class="card-sub">minutes per film</div></div>
+    </div>
+
+    <div class="section-label">Visualisations</div>
+    <div class="charts-grid">
+
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Genre Distribution</div>
+        <div class="chart-container"><canvas id="chart-genre"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Rating Correlation</div>
+        <div class="chart-container"><canvas id="chart-scatter"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent3)"></span>Top Directors</div>
+        <div class="chart-container"><canvas id="chart-directors"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Language Distribution</div>
+        <div class="chart-container"><canvas id="chart-language"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-actions">
+          <div class="chart-title" style="margin-bottom:0"><span class="chart-dot" style="background:var(--accent3)"></span>Films Watched Over Time</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="zoom-hint">Scroll to zoom · Drag to pan</span>
+            <button class="zoom-reset-btn" onclick="resetTimelineZoom()">Reset Zoom</button>
+          </div>
+        </div>
+        <div class="chart-container"><canvas id="chart-timeline"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Country of Production</div>
+        <div class="chart-container"><canvas id="chart-country"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Genre Preference Over Time <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(Top 3)</span></div>
+        <div class="chart-container"><canvas id="chart-genre-time"></canvas></div>
+      </div>
+
+      <div class="chart-card wide">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Watch Pattern</div>
+        <div class="heatmap-wrap" id="heatmap-container"></div>
+      </div>
+
+    </div>
+
+    <div class="section-label">All Films</div>
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-title">Enriched Film Log</span>
+        <span class="table-count" id="table-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Title</th><th>Director</th><th>Watch Date</th>
+              <th>Year</th><th>Your Rating</th><th>TMDb</th>
+              <th>Runtime</th><th>Language</th><th>Country</th>
+              <th>Genres</th><th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="film-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="error-bar"></div>
+<div id="success-bar"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  FIREBASE SETUP
+//  Replace placeholder values with YOUR Firebase
+//  project credentials:
+//  console.firebase.google.com
+//  → Project Settings → Your apps → Web app
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyCSHxIQbxfHFmPobkh40QfTZUFP43Kbcsc",
+  authDomain:        "auteur-engine.firebaseapp.com",
+  projectId:         "auteur-engine",
+  storageBucket:     "auteur-engine.firebasestorage.app",
+  messagingSenderId: "703206995097",
+  appId:             "1:703206995097:web:68e5dc3e617a9ebcd1b408"
+};
+
+let db = null, moviesCol = null, firebaseReady = false;
+if (typeof firebase !== "undefined") {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  moviesCol = db.collection("movies");
+  firebaseReady = true;
+} else {
+  console.error("Firebase not loaded");
+}
+
+// ──────────────────────────────────────────────
+//  STATE
+// ──────────────────────────────────────────────
+let enrichedData = [];
+let charts = {};
+let unsubSnap = null;
+const KEY_KEY     = 'auteur_tmdb_key';
+const LS_FALLBACK = 'auteur_movies_v3';
+
+// ──────────────────────────────────────────────
+//  HELPERS
+// ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const hide = id => $(id).style.display = 'none';
+
+function showError(msg) {
+  const b=$('error-bar'); b.textContent=msg; b.style.display='block';
+  setTimeout(()=>b.style.display='none',5000);
+}
+function showSuccess(msg) {
+  const b=$('success-bar'); b.textContent=msg; b.style.display='block';
+  setTimeout(()=>b.style.display='none',3500);
+}
+function getApiKey() {
+  return $('api-key-input')?.value?.trim() || localStorage.getItem(KEY_KEY) || '';
+}
+function saveApiKey() {
+  const k=$('api-key-input').value.trim();
+  if(!k){showError('Please enter an API key first.');return;}
+  localStorage.setItem(KEY_KEY,k);
+  showSuccess('TMDb API key saved — will persist across sessions.');
+}
+
+// ──────────────────────────────────────────────
+//  FIRESTORE
+// ──────────────────────────────────────────────
+async function saveToFirestore(movie) {
+  const doc={};
+  Object.entries(movie).forEach(([k,v])=>{if(v!==undefined&&v!==null)doc[k]=v;});
+  if(!doc.title) return;
+  try { await moviesCol.add(doc); }
+  catch(err){ showError('Firestore write failed: '+err.message); throw err; }
+}
+
+function startRealtimeSync() {
+  if(!firebaseReady){ showFirebaseBanner(); return; }
+  if(unsubSnap) unsubSnap();
+  try {
+    unsubSnap = moviesCol.orderBy('watch_date','desc').onSnapshot(snap=>{
+      enrichedData = snap.docs.map(d=>({_id:d.id,...d.data()}));
+      const el=$('last-updated');
+      if(el) el.textContent='Synced '+new Date().toLocaleTimeString();
+      if(enrichedData.length){
+        hide('upload-section');
+        $('dashboard-section').style.display='block';
+        buildDashboard();
+      } else {
+        $('dashboard-section').style.display='none';
+        $('upload-section').style.display='flex';
+        switchTab('log');
+      }
+    }, err=>{
+      console.warn('onSnapshot:',err.code,err.message);
+      showFirebaseBanner(); useFallback();
+    });
+  } catch(e){ showFirebaseBanner(); useFallback(); }
+}
+
+function useFallback() {
+  try {
+    const raw=localStorage.getItem(LS_FALLBACK);
+    if(raw){ enrichedData=JSON.parse(raw); }
+    if(enrichedData.length){
+      hide('upload-section'); $('dashboard-section').style.display='block'; buildDashboard();
+      const el=$('last-updated'); if(el) el.textContent='⚠ Local fallback';
+    }
+  } catch(e){}
+}
+function saveFallback(){ try{localStorage.setItem(LS_FALLBACK,JSON.stringify(enrichedData));}catch(e){} }
+
+function showFirebaseBanner() {
+  if($('fb-banner')) return;
+  const b=document.createElement('div'); b.id='fb-banner';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999;background:#18181f;border-bottom:2px solid #e8c547;padding:14px 48px;font-family:DM Mono,monospace;font-size:12px;color:#e8c547;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+  b.innerHTML='<strong>⚠ Firebase connection issue</strong><span style="color:#7a798c">Could not reach Firestore. Check your internet connection or Firestore security rules (allow read, write: if true). Data is stored locally until the connection is restored.</span><button onclick="this.parentElement.remove()" style="margin-left:auto;background:transparent;border:1px solid #e8c547;color:#e8c547;font-family:DM Mono,monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border-radius:2px;cursor:pointer;">Dismiss</button>';
+  document.body.prepend(b);
+}
+
+async function clearAllData() {
+  if(!confirm('Permanently delete ALL films? This cannot be undone.')) return;
+  if(firebaseReady&&moviesCol){
+    try{
+      const snap=await moviesCol.get();
+      const batch=db.batch();
+      snap.docs.forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+      showSuccess('All data cleared from Firestore.');
+    } catch(err){ showError('Clear failed: '+err.message); }
+  } else {
+    enrichedData=[]; localStorage.removeItem(LS_FALLBACK);
+    Object.values(charts).forEach(c=>c.destroy()); charts={};
+    ['film-table-body','insights-grid','heatmap-container'].forEach(id=>$(id).innerHTML='');
+    $('dashboard-section').style.display='none';
+    $('upload-section').style.display='flex'; switchTab('log');
+    showSuccess('Local data cleared.');
+  }
+}
+
+// ──────────────────────────────────────────────
+//  NAVIGATION
+// ──────────────────────────────────────────────
+function switchTab(tab) {
+  $('tab-log').classList.toggle('active',tab==='log');
+  $('tab-import').classList.toggle('active',tab==='import');
+  $('log-pane').style.display=tab==='log'?'block':'none';
+  $('import-pane').style.display=tab==='import'?'block':'none';
+}
+function showEntryPanel() {
+  hide('dashboard-section'); $('upload-section').style.display='flex'; switchTab('log');
+  const s=localStorage.getItem(KEY_KEY); if(s&&$('api-key-input')) $('api-key-input').value=s;
+}
+
+// ──────────────────────────────────────────────
+//  DUPLICATE CHECK
+// ──────────────────────────────────────────────
+function isDuplicate(title,watch_date) {
+  const t=title.trim().toLowerCase(), d=watch_date||'';
+  return enrichedData.some(m=>m.title?.trim().toLowerCase()===t&&(m.watch_date||'')===d);
+}
+
+// ──────────────────────────────────────────────
+//  MANUAL LOG
+// ──────────────────────────────────────────────
+async function submitLogEntry() {
+  const title     = $('log-title').value.trim();
+  const watch_date= $('log-date').value;
+  const watch_time= $('log-time').value||null;
+  const rr        = $('log-rating').value;
+  const user_rating= rr!==''?parseFloat(rr):null;
+  if(!title){showError('Please enter a movie title.');return;}
+  if(!watch_date){showError('Please select a watch date.');return;}
+  const apiKey=getApiKey();
+  if(!apiKey){showError('No TMDb API key. Please enter and save it first.');return;}
+  if(isDuplicate(title,watch_date)){showError(`"${title}" on ${watch_date} is already in your log.`);return;}
+
+  const btn=$('log-submit-btn'), st=$('log-status');
+  btn.disabled=true; st.textContent='Fetching from TMDb…';
+  try {
+    const result=await searchMovie(title,apiKey);
+    let movie;
+    if(!result){
+      movie={title,watch_date,watch_time,user_rating,genres:[],runtime:null,language:null,popularity:null,release_year:null,tmdb_rating:null,director:null,country:null,source:'manual'};
+      showSuccess(`"${title}" logged (not found on TMDb).`);
+    } else {
+      st.textContent='Fetching details + credits…';
+      const [details,director]=await Promise.all([getMovieDetails(result.id,apiKey),getMovieCredits(result.id,apiKey)]);
+      movie={
+        title,watch_date,watch_time,user_rating,
+        genres:details.genres?.map(g=>g.name)||[],
+        runtime:details.runtime||null,
+        language:details.original_language||null,
+        popularity:details.popularity||null,
+        release_year:details.release_date?details.release_date.slice(0,4):null,
+        tmdb_rating:details.vote_average?parseFloat(details.vote_average.toFixed(1)):null,
+        director,
+        country:details.production_countries?.[0]?.name||null,
+        source:'manual',
+      };
+      showSuccess(`"${title}" logged and enriched ✓`);
+    }
+    if(firebaseReady&&moviesCol){ await saveToFirestore(movie); }
+    else { enrichedData.push(movie); saveFallback(); buildDashboard(); if($('dashboard-section').style.display==='none'){hide('upload-section');$('dashboard-section').style.display='block';} }
+    ['log-title','log-date','log-time','log-rating'].forEach(id=>$(id).value='');
+    st.textContent='';
+  } catch(err){
+    if(!err.message?.includes('Firestore')) showError('TMDb error: '+err.message);
+    st.textContent='';
+  } finally { btn.disabled=false; }
+}
+
+// ──────────────────────────────────────────────
+//  FILE UPLOAD
+// ──────────────────────────────────────────────
+$('file-input').addEventListener('change',e=>{const f=e.target.files[0];if(f)handleFile(f);});
+const dz=$('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.name.endsWith('.csv'))handleFile(f);
+  else showError('Please drop a valid .csv file.');
+});
+
+async function handleFile(file) {
+  const apiKey=getApiKey();
+  if(!apiKey){showError('Please enter your TMDb API key first.');return;}
+  const text=await file.text();
+  const parsed=parseCSV(text);
+  if(!parsed.length){showError('No movies found in CSV.');return;}
+  const fresh=parsed.filter(m=>!isDuplicate(m.title,m.watch_date));
+  if(!fresh.length){showError('All CSV entries are already in your log.');return;}
+  hide('upload-section'); $('progress-section').style.display='flex';
+  await fetchAllMovies(fresh,apiKey);
+}
+
+// ──────────────────────────────────────────────
+//  CSV PARSING
+// ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(lines.length<2) return [];
+  const headers=splitCSVLine(lines[0]).map(h=>h.toLowerCase().trim());
+  const nameCol  =headers.findIndex(h=>['name','title','movie'].some(k=>h.includes(k)));
+  const dateCol  =headers.findIndex(h=>h.includes('date'));
+  const ratingCol=headers.findIndex(h=>h.includes('rating'));
+  const movies=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=splitCSVLine(lines[i]);
+    const title=nameCol>=0?cols[nameCol]?.trim():null; if(!title)continue;
+    const watch_date=dateCol>=0?cols[dateCol]?.trim():null;
+    const rr=ratingCol>=0?cols[ratingCol]?.trim():null;
+    let user_rating=null;
+    if(rr&&!isNaN(parseFloat(rr))){const r=parseFloat(rr);user_rating=r<=5?r*2:r;}
+    movies.push({title,watch_date,watch_time:null,user_rating,source:'csv'});
+  }
+  return movies;
+}
+function splitCSVLine(line) {
+  const res=[];let q=false,cur='';
+  for(const ch of line){if(ch==='"'){q=!q;continue;}if(ch===','&&!q){res.push(cur);cur='';continue;}cur+=ch;}
+  res.push(cur);return res;
+}
+
+// ──────────────────────────────────────────────
+//  TMDB API
+// ──────────────────────────────────────────────
+const TMDB='https://api.themoviedb.org/3';
+const LANG_MAP={en:'English',fr:'French',es:'Spanish',de:'German',it:'Italian',ja:'Japanese',ko:'Korean',zh:'Chinese',pt:'Portuguese',ru:'Russian',hi:'Hindi',ar:'Arabic',fa:'Farsi',tr:'Turkish',sv:'Swedish',da:'Danish',nl:'Dutch',pl:'Polish',cs:'Czech',fi:'Finnish',nb:'Norwegian',hu:'Hungarian',ro:'Romanian',th:'Thai',id:'Indonesian',uk:'Ukrainian',he:'Hebrew',vi:'Vietnamese',bn:'Bengali',ta:'Tamil',ml:'Malayalam',te:'Telugu',mr:'Marathi',pa:'Punjabi',ur:'Urdu'};
+function langName(code){if(!code||code==='—')return '—';return LANG_MAP[code.toLowerCase()]||code.toUpperCase();}
+
+async function searchMovie(title,apiKey){
+  const r=await fetch(`${TMDB}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}&include_adult=false`);
+  if(!r.ok)throw new Error(`TMDb search ${r.status}`);
+  return (await r.json()).results?.[0]||null;
+}
+async function getMovieDetails(id,apiKey){
+  const r=await fetch(`${TMDB}/movie/${id}?api_key=${apiKey}`);
+  if(!r.ok)throw new Error(`TMDb details ${r.status}`);
+  return r.json();
+}
+async function getMovieCredits(id,apiKey){
+  try{
+    const r=await fetch(`${TMDB}/movie/${id}/credits?api_key=${apiKey}`);
+    if(!r.ok)return null;
+    const d=await r.json();
+    return d.crew?.find(c=>c.job==='Director')?.name||null;
+  }catch{return null;}
+}
+
+async function fetchAllMovies(parsed,apiKey){
+  const total=parsed.length, circ=339.3;
+  const circle=$('progress-circle');
+  for(let i=0;i<total;i++){
+    const m=parsed[i];
+    const pct=Math.round(((i+1)/total)*100);
+    $('progress-pct').textContent=pct+'%';
+    $('progress-current').textContent=`(${i+1}/${total}) ${m.title}`;
+    circle.style.strokeDashoffset=circ-circ*pct/100;
+    try{
+      const result=await searchMovie(m.title,apiKey);
+      if(!result){
+        const doc={...m,genres:[],runtime:null,language:null,popularity:null,release_year:null,tmdb_rating:null,director:null,country:null};
+        if(firebaseReady&&moviesCol)await saveToFirestore(doc);
+        else{enrichedData.push(doc);saveFallback();}
+        continue;
+      }
+      const [details,director]=await Promise.all([getMovieDetails(result.id,apiKey),getMovieCredits(result.id,apiKey)]);
+      const doc={
+        title:m.title, watch_date:m.watch_date||null, watch_time:m.watch_time||null, user_rating:m.user_rating,
+        genres:details.genres?.map(g=>g.name)||[], runtime:details.runtime||null,
+        language:details.original_language||null, popularity:details.popularity||null,
+        release_year:details.release_date?details.release_date.slice(0,4):null,
+        tmdb_rating:details.vote_average?parseFloat(details.vote_average.toFixed(1)):null,
+        director, country:details.production_countries?.[0]?.name||null,
+        source:m.source||'csv',
+      };
+      if(firebaseReady&&moviesCol)await saveToFirestore(doc);
+      else{enrichedData.push(doc);saveFallback();}
+    }catch(err){console.warn('Error:',m.title,err.message);}
+    await new Promise(r=>setTimeout(r,180));
+  }
+  hide('progress-section');
+  if(!firebaseReady){$('dashboard-section').style.display='block';buildDashboard();}
+}
+
+// ──────────────────────────────────────────────
+//  EXPORT
+// ──────────────────────────────────────────────
+function exportData(){
+  if(!enrichedData.length){showError('No data to export.');return;}
+  const blob=new Blob([JSON.stringify(enrichedData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`auteur-engine-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ──────────────────────────────────────────────
+//  DASHBOARD
+// ──────────────────────────────────────────────
+function buildDashboard(){
+  const valid=enrichedData.filter(m=>!m.error);
+  buildPersona(valid);
+  $('stat-total').textContent=valid.length;
+  const rated=valid.filter(m=>m.user_rating!=null);
+  $('stat-rating').textContent=rated.length?(rated.reduce((s,m)=>s+m.user_rating,0)/rated.length).toFixed(1):'—';
+  const timed=valid.filter(m=>m.runtime);
+  $('stat-runtime').textContent=timed.length?Math.round(timed.reduce((s,m)=>s+m.runtime,0)/timed.length):'—';
+  buildInsights(enrichedData);
+  buildGenreChart(valid); buildScatterChart(valid); buildDirectorsChart(valid);
+  buildLanguageChart(valid); buildTimelineChart(valid); buildCountryChart(valid);
+  buildGenreTimeChart(valid); buildHeatmap(valid); buildTable(enrichedData);
+}
+
+// ──────────────────────────────────────────────
+//  PERSONA
+// ──────────────────────────────────────────────
+function buildPersona(data){
+  if(data.length<3){$('persona-title').textContent='Log more films to reveal your persona';$('persona-desc').innerHTML='Add at least 3 films to generate a behavioral profile.';$('persona-tags').innerHTML='';return;}
+  const hi=calcHarshnessIndex(data),es=calcExplorationScore(data),gb=calcGenreBias(data),pt=calcPopularityTaste(data),cz=calcComfortZone(data);
+  const tags=[];
+  if(hi!==null){if(hi<=-1.5)tags.push({text:'Strict',color:'var(--accent3)'});else if(hi<=-0.3)tags.push({text:'Discerning',color:'var(--accent3)'});else if(hi>=1.5)tags.push({text:'Generous',color:'var(--accent)'});else tags.push({text:'Calibrated',color:'var(--accent2)'});}
+  if(pt)tags.push({text:pt==='niche'?'Niche':'Mainstream',color:pt==='niche'?'var(--accent)':'var(--accent2)'});
+  if(es!==null){if(es>=0.6)tags.push({text:'Explorer',color:'var(--accent)'});else if(es>=0.3)tags.push({text:'Balanced',color:'var(--accent2)'});else tags.push({text:'Specialist',color:'var(--accent3)'});}
+  if(gb)tags.push({text:gb.highest,color:'var(--muted)'});
+  let icon='🎬';
+  if(pt==='niche'&&hi!==null&&hi<0)icon='🎞';else if(pt==='mainstream')icon='🍿';else if(hi!==null&&hi<-1)icon='🧐';else if(hi!==null&&hi>1)icon='🌟';
+  const arch=[];
+  if(hi!==null&&hi<-1)arch.push('The Critic');else if(hi!==null&&hi>1)arch.push('The Enthusiast');else arch.push('The Analyst');
+  arch.push(pt==='niche'?'Art House':'Crowd Pleaser');
+  $('persona-icon').textContent=icon;
+  $('persona-title').textContent=arch.join(' · ');
+  const sw=hi!==null?(hi<-1?'strict':hi<0?'slightly strict':hi>1?'generous':'balanced'):'measured';
+  const nw=pt==='niche'?'niche-oriented':'mainstream-aligned';
+  const ew=es!==null?(es>=0.6?'highly exploratory':es>=0.3?'moderately exploratory':'preference-driven'):'focused';
+  const gw=gb?`a strong preference for <strong>${gb.highest}</strong>`:'eclectic taste';
+  const cw=cz.pct>=70?`${cz.pct}% of your films fall in your comfort genres`:`${cz.pct}% genre concentration`;
+  $('persona-desc').innerHTML=`You are a <strong>${sw}</strong>, <strong>${nw}</strong> viewer with ${gw} and <strong>${ew}</strong> genre choices. ${cw}.`;
+  $('persona-tags').innerHTML=tags.map(t=>`<span class="persona-tag" style="color:${t.color};border-color:${t.color};background:${t.color}18">${t.text}</span>`).join('');
+}
+
+// ──────────────────────────────────────────────
+//  ANALYTICS
+// ──────────────────────────────────────────────
+function calcHarshnessIndex(data){const p=data.filter(m=>m.user_rating!=null&&m.tmdb_rating!=null);if(!p.length)return null;return parseFloat((p.reduce((s,m)=>s+(m.user_rating-m.tmdb_rating),0)/p.length).toFixed(2));}
+function calcGenreBias(data){const gr={};data.forEach(m=>{if(m.user_rating==null)return;(m.genres||[]).forEach(g=>{if(!gr[g])gr[g]=[];gr[g].push(m.user_rating);});});const avgs=Object.entries(gr).filter(([,a])=>a.length>=2).map(([g,a])=>[g,a.reduce((s,v)=>s+v,0)/a.length]);if(avgs.length<2)return null;avgs.sort((a,b)=>b[1]-a[1]);return{highest:avgs[0][0],lowest:avgs[avgs.length-1][0]};}
+function calcExplorationScore(data){const u=new Set(data.flatMap(m=>m.genres||[]));return data.length?parseFloat((u.size/data.length).toFixed(2)):null;}
+function calcPopularityTaste(data){const pts=data.filter(m=>m.popularity!=null&&m.user_rating!=null);if(!pts.length)return null;const med=[...pts].sort((a,b)=>a.popularity-b.popularity)[Math.floor(pts.length/2)].popularity;const niche=pts.filter(m=>m.popularity<med),main=pts.filter(m=>m.popularity>=med);if(!niche.length||!main.length)return null;const na=niche.reduce((s,m)=>s+m.user_rating,0)/niche.length,ma=main.reduce((s,m)=>s+m.user_rating,0)/main.length;return na>ma?'niche':'mainstream';}
+function calcComfortZone(data){const freq={};data.forEach(m=>(m.genres||[]).forEach(g=>{freq[g]=(freq[g]||0)+1;}));const top3=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]);const inZ=data.filter(m=>(m.genres||[]).some(g=>top3.includes(g))).length;return{pct:data.length?Math.round(inZ/data.length*100):0,top3};}
+
+// ──────────────────────────────────────────────
+//  INSIGHTS
+// ──────────────────────────────────────────────
+function buildInsights(data){
+  const grid=$('insights-grid');grid.innerHTML='';
+  const valid=data.filter(m=>!m.error);
+  const hi=calcHarshnessIndex(valid);
+  if(hi!==null){const lbl=hi<0?'Strict Critic':'Generous Viewer';const d=hi<0?`You rate films <strong>${Math.abs(hi)} pts</strong> below avg viewers.`:`You rate films <strong>${hi} pts</strong> above avg viewers.`;const c=hi<0?'var(--accent3)':'var(--accent)';grid.insertAdjacentHTML('beforeend',insightHTML({name:'Harshness Index',value:(hi>0?'+':'')+hi,badge:lbl,badgeBg:hi<0?'rgba(239,108,87,.1)':'rgba(232,197,71,.1)',badgeColor:c,desc:d,color:c}));}
+  const gb=calcGenreBias(valid);
+  if(gb)grid.insertAdjacentHTML('beforeend',insightHTML({name:'Genre Bias',value:gb.highest,badge:'Detected',badgeBg:'rgba(123,110,246,.1)',badgeColor:'var(--accent2)',desc:`You favour <strong>${gb.highest}</strong> and underrate <strong>${gb.lowest}</strong>.`,color:'var(--accent2)'}));
+  const es=calcExplorationScore(valid);
+  if(es!==null){const arch=es>=0.6?'Highly Exploratory':es>=0.3?'Balanced Viewer':'Preference-Driven';const c=es>=0.6?'var(--accent)':es>=0.3?'var(--accent2)':'var(--accent3)';grid.insertAdjacentHTML('beforeend',insightHTML({name:'Exploration Score',value:es.toFixed(2),badge:arch,badgeBg:'rgba(255,255,255,.04)',badgeColor:c,desc:es>=0.6?'Wide genre palette — a true explorer.':es>=0.3?'Healthy mix of familiar and new territory.':'Deep loyalty to a core set of genres.',color:c}));}
+  const pt=calcPopularityTaste(valid);
+  if(pt){const n=pt==='niche';grid.insertAdjacentHTML('beforeend',insightHTML({name:'Popularity vs Taste',value:n?'Niche':'Mainstream',badge:n?'Art House Lean':'Crowd Aligned',badgeBg:n?'rgba(232,197,71,.08)':'rgba(123,110,246,.08)',badgeColor:n?'var(--accent)':'var(--accent2)',desc:n?'You rate low-popularity films <strong>higher</strong> than blockbusters.':'Your ratings align with mainstream popularity.',color:n?'var(--accent)':'var(--accent2)'}));}
+  const cz=calcComfortZone(valid);
+  const czL=cz.pct>=70?'Strong Comfort Zone':cz.pct>=40?'Balanced Range':'Highly Exploratory';
+  const czC=cz.pct>=70?'var(--accent3)':cz.pct>=40?'var(--accent2)':'var(--accent)';
+  grid.insertAdjacentHTML('beforeend',`<div class="insight-card" style="--insight-color:${czC}"><div class="insight-header"><span class="insight-name">Comfort Zone</span><span class="insight-badge" style="background:rgba(255,255,255,.04);color:${czC}">${czL}</span></div><div class="insight-value">${cz.pct}%</div><div class="comfort-bar-wrap"><div class="comfort-bar-fill" style="width:${cz.pct}%"></div></div><div class="insight-desc"><strong>${cz.pct}%</strong> of films in: ${cz.top3.map(g=>`<strong>${g}</strong>`).join(', ')}.</div></div>`);
+}
+function insightHTML({name,value,badge,badgeBg,badgeColor,desc,color}){return `<div class="insight-card" style="--insight-color:${color}"><div class="insight-header"><span class="insight-name">${name}</span><span class="insight-badge" style="background:${badgeBg};color:${badgeColor}">${badge}</span></div><div class="insight-value">${value}</div><div class="insight-desc">${desc}</div></div>`;}
+
+// ──────────────────────────────────────────────
+//  HEATMAP
+// ──────────────────────────────────────────────
+function buildHeatmap(data){const wt=data.filter(m=>m.watch_time&&m.watch_date&&m.watch_date!=='—');const c=$('heatmap-container');if(wt.length>=3)buildRealHeatmap(wt,c);else buildDayBar(data,c);}
+function buildRealHeatmap(data,con){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const grid=Array.from({length:7},()=>Array(24).fill(0));
+  data.forEach(m=>{const d=new Date(m.watch_date+'T'+m.watch_time);if(isNaN(d))return;grid[(d.getDay()+6)%7][d.getHours()]++;});
+  const mx=Math.max(...grid.flat(),1);
+  const cc=v=>{const t=v/mx;if(t===0)return'var(--surface2)';if(t<.25)return'rgba(123,110,246,.2)';if(t<.5)return'rgba(123,110,246,.45)';if(t<.75)return'rgba(123,110,246,.7)';return'rgba(123,110,246,.95)';};
+  let h='<div class="heatmap-grid"><div class="hm-label"></div>';
+  for(let i=0;i<24;i++)h+=`<div class="hm-col-label">${i%6===0?String(i).padStart(2,'0'):''}</div>`;
+  days.forEach((day,d)=>{h+=`<div class="hm-label">${day}</div>`;grid[d].forEach((v,hr)=>{h+=`<div class="hm-cell" style="background:${cc(v)}" title="${day} ${String(hr).padStart(2,'0')}:00 — ${v} film${v!==1?'s':''}"></div>`;});});
+  h+='</div>';
+  h+=`<div class="hm-legend"><span>Less</span><div class="hm-legend-swatch">${['rgba(123,110,246,.2)','rgba(123,110,246,.45)','rgba(123,110,246,.7)','rgba(123,110,246,.95)'].map(c=>`<span style="background:${c};border:1px solid rgba(255,255,255,.06)"></span>`).join('')}</div><span>More</span></div>`;
+  con.innerHTML=h;
+}
+function buildDayBar(data,con){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const counts=Array(7).fill(0);
+  data.forEach(m=>{if(!m.watch_date||m.watch_date==='—')return;const d=new Date(m.watch_date);if(!isNaN(d))counts[(d.getDay()+6)%7]++;});
+  con.innerHTML=`<p style="font-size:10px;color:var(--muted);margin-bottom:16px;letter-spacing:1px;">Day-of-week distribution · Log films with a watch time to unlock the hour-level heatmap</p><div style="position:relative;height:160px;"><canvas id="chart-dow"></canvas></div>`;
+  if(charts.dow)charts.dow.destroy();
+  charts.dow=new Chart($('chart-dow'),{type:'bar',data:{labels:days,datasets:[{data:counts,backgroundColor:days.map((_,i)=>`hsla(${230+i*10},70%,65%,.7)`),borderRadius:3,borderSkipped:false}]},options:chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'}}})});
+}
+
+// ──────────────────────────────────────────────
+//  CHARTS
+// ──────────────────────────────────────────────
+function buildGenreChart(data){
+  const freq={};data.forEach(m=>(m.genres||[]).forEach(g=>{freq[g]=(freq[g]||0)+1;}));
+  const s=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(charts.genre)charts.genre.destroy();
+  charts.genre=new Chart($('chart-genre'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>`hsla(${40+i*22},80%,60%,.75)`),borderRadius:3,borderSkipped:false}]},options:chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'}}})});
+}
+function buildDirectorsChart(data){
+  const freq={};data.forEach(m=>{if(m.director)freq[m.director]=(freq[m.director]||0)+1;});
+  const s=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!s.length){if(charts.directors){charts.directors.destroy();delete charts.directors;}return;}
+  if(charts.directors)charts.directors.destroy();
+  charts.directors=new Chart($('chart-directors'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>`hsla(${280+i*18},70%,65%,.75)`),borderRadius:3,borderSkipped:false}]},options:{...chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}}),indexAxis:'y'}});
+}
+function buildLanguageChart(data){
+  const freq={};data.forEach(m=>{if(!m.language)return;const n=langName(m.language);freq[n]=(freq[n]||0)+1;});
+  const s=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!s.length)return;
+  if(charts.language)charts.language.destroy();
+  charts.language=new Chart($('chart-language'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>`hsla(${160+i*20},70%,60%,.75)`),borderRadius:3,borderSkipped:false}]},options:chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}})});
+}
+function buildCountryChart(data){
+  const freq={};data.forEach(m=>{if(m.country)freq[m.country]=(freq[m.country]||0)+1;});
+  const s=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  if(!s.length)return;
+  if(charts.country)charts.country.destroy();
+  charts.country=new Chart($('chart-country'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>`hsla(${20+i*16},75%,60%,.75)`),borderRadius:3,borderSkipped:false}]},options:chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}})});
+}
+function buildTimelineChart(data){
+  const bm={};data.forEach(m=>{if(!m.watch_date||m.watch_date==='—')return;const k=m.watch_date.slice(0,7);bm[k]=(bm[k]||0)+1;});
+  const keys=Object.keys(bm).sort();
+  if(charts.timeline)charts.timeline.destroy();
+  charts.timeline=new Chart($('chart-timeline'),{type:'line',data:{labels:keys,datasets:[{data:keys.map(k=>bm[k]),borderColor:'#ef6c57',backgroundColor:'rgba(239,108,87,.08)',pointBackgroundColor:'#ef6c57',pointRadius:4,tension:.35,fill:true}]},options:{...chartOptions({x:{grid:{color:'rgba(255,255,255,.04)'}},y:{grid:{color:'rgba(255,255,255,.04)'}}}),plugins:{...chartOptions({}).plugins,zoom:{pan:{enabled:true,mode:'x'},zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:true,backgroundColor:'rgba(239,108,87,.08)',borderColor:'rgba(239,108,87,.4)',borderWidth:1},mode:'x'}}}}});
+}
+function resetTimelineZoom(){if(charts.timeline)charts.timeline.resetZoom();}
+function buildScatterChart(data){
+  const pts=data.filter(m=>m.user_rating!=null&&m.tmdb_rating!=null).map(m=>({x:m.tmdb_rating,y:m.user_rating,label:m.title}));
+  if(charts.scatter)charts.scatter.destroy();
+  charts.scatter=new Chart($('chart-scatter'),{type:'scatter',data:{datasets:[{label:'Films',data:pts,backgroundColor:'rgba(123,110,246,.6)',pointRadius:5,pointHoverRadius:7}]},options:{...chartOptions({}),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.label} — You: ${c.raw.y}, TMDb: ${c.raw.x}`},backgroundColor:'#18181f',borderColor:'#2a2a38',borderWidth:1,titleColor:'#f0eff8',bodyColor:'#7a798c'}},scales:{x:{...scaleStyle(),title:{display:true,text:'TMDb Rating',color:'#7a798c',font:{family:'DM Mono',size:10}}},y:{...scaleStyle(),title:{display:true,text:'Your Rating',color:'#7a798c',font:{family:'DM Mono',size:10}}}}}});
+}
+function buildGenreTimeChart(data){
+  const freq={};data.forEach(m=>(m.genres||[]).forEach(g=>{freq[g]=(freq[g]||0)+1;}));
+  const top3=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]);
+  const months={};
+  data.forEach(m=>{if(!m.watch_date||m.watch_date==='—')return;const k=m.watch_date.slice(0,7);if(!months[k])months[k]={};top3.forEach(g=>{if(!months[k][g])months[k][g]=0;if((m.genres||[]).includes(g))months[k][g]++;});});
+  const labels=Object.keys(months).sort();
+  const hx=['#e8c547','#7b6ef6','#ef6c57'];
+  const datasets=top3.map((g,i)=>({label:g,data:labels.map(mo=>months[mo]?.[g]||0),borderColor:hx[i],backgroundColor:hx[i]+'18',pointBackgroundColor:hx[i],pointRadius:3,tension:.4,fill:false}));
+  if(charts.genreTime)charts.genreTime.destroy();
+  charts.genreTime=new Chart($('chart-genre-time'),{type:'line',data:{labels,datasets},options:{...chartOptions({x:{grid:{color:'rgba(255,255,255,.04)'}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}}),plugins:{legend:{display:true,labels:{color:'#7a798c',font:{family:'DM Mono',size:10},boxWidth:10,padding:16}},tooltip:{backgroundColor:'#18181f',borderColor:'#2a2a38',borderWidth:1,titleColor:'#f0eff8',bodyColor:'#7a798c',titleFont:{family:'DM Mono'},bodyFont:{family:'DM Mono'}}}}});
+}
+function scaleStyle(){return{ticks:{color:'#7a798c',font:{family:'DM Mono',size:10}},grid:{color:'rgba(255,255,255,.04)'},border:{color:'rgba(255,255,255,.06)'}};}
+function chartOptions(scales){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#18181f',borderColor:'#2a2a38',borderWidth:1,titleColor:'#f0eff8',bodyColor:'#7a798c',titleFont:{family:'DM Mono'},bodyFont:{family:'DM Mono'}}},scales:{x:{ticks:{color:'#7a798c',font:{family:'DM Mono',size:10}},grid:{color:'rgba(255,255,255,.04)'},border:{color:'rgba(255,255,255,.06)'},...(scales.x||{})},y:{ticks:{color:'#7a798c',font:{family:'DM Mono',size:10}},grid:{color:'rgba(255,255,255,.04)'},border:{color:'rgba(255,255,255,.06)'},...(scales.y||{})}}};}
+
+// ──────────────────────────────────────────────
+//  TABLE
+// ──────────────────────────────────────────────
+function buildTable(data){
+  $('table-count').textContent=`${data.length} films`;
+  const tbody=$('film-table-body');tbody.innerHTML='';
+  const sorted=[...data].sort((a,b)=>{if(!a.watch_date||a.watch_date==='—')return 1;if(!b.watch_date||b.watch_date==='—')return -1;return b.watch_date.localeCompare(a.watch_date);});
+  sorted.forEach((m,i)=>{
+    const rc=m.user_rating>=7?'rating-high':m.user_rating>=4?'rating-mid':'rating-low';
+    const tc=m.tmdb_rating>=7?'rating-high':m.tmdb_rating>=5?'rating-mid':'rating-low';
+    const gt=(m.genres||[]).slice(0,3).map(g=>`<span class="genre-tag">${g}</span>`).join('');
+    const src=m.source==='manual'?'<span style="color:var(--accent2);font-size:9px;letter-spacing:1px;">MANUAL</span>':'<span style="color:var(--muted);font-size:9px;letter-spacing:1px;">CSV</span>';
+    tbody.insertAdjacentHTML('beforeend',`<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis">${m.title}</td>
+      <td style="color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis">${m.director||'—'}</td>
+      <td style="color:var(--muted)">${m.watch_date||'—'}${m.watch_time?` <span style="opacity:.5">${m.watch_time}</span>`:''}</td>
+      <td style="color:var(--muted)">${m.release_year||'—'}</td>
+      <td>${m.user_rating!=null?`<span class="rating-pill ${rc}">${m.user_rating}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${m.tmdb_rating!=null?`<span class="rating-pill ${tc}">${m.tmdb_rating}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="color:var(--muted)">${m.runtime?m.runtime+' min':'—'}</td>
+      <td style="color:var(--muted)">${langName(m.language)}</td>
+      <td style="color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis">${m.country||'—'}</td>
+      <td>${gt||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${src}</td>
+    </tr>`);
+  });
+}
+
+// ──────────────────────────────────────────────
+//  BOOT
+// ──────────────────────────────────────────────
+(function boot(){
+  const saved=localStorage.getItem(KEY_KEY);
+  if(saved&&$('api-key-input'))$('api-key-input').value=saved;
+  // Only show upload section if Firestore is not ready (will be hidden by onSnapshot if data exists)
+  $('upload-section').style.display='flex';
+  switchTab('log');
+  startRealtimeSync();
+})();
+</script>
+</body>
+</html>
