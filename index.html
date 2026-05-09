@@ -3769,18 +3769,30 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       <td style="color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis">India</td>
       <td><span style="color:var(--muted)">—</span></td>
       <td><span style="color:var(--muted);font-size:9px;letter-spacing:1px;">CSV</span></td>
-    </tr></tbody>
+   </tr></tbody>
         </table>
       </div>
     </div>
 
-  </div>
+    <div class="section-label">Watchlist</div>
+    <div class="watchlist-card" id="watchlist-section">
+      <div class="watchlist-header">
+        <span style="font-family:var(--font-head);font-size:14px;font-weight:700;">Want to Watch</span>
+        <span style="font-size:11px;color:var(--muted)" id="watchlist-count">0 films queued</span>
+      </div>
+      <div class="watchlist-add-row">
+        <input type="text" class="watchlist-add-input" id="watchlist-input" placeholder="Add a film title…" onkeydown="if(event.key==='Enter')addToWatchlist()">
+        <input type="text" class="watchlist-add-input" id="watchlist-note-input" placeholder="Note (optional)" style="max-width:200px;" onkeydown="if(event.key==='Enter')addToWatchlist()">
+        <button class="watchlist-add-btn" onclick="addToWatchlist()">+ Add</button>
+      </div>
+      <div id="watchlist-items"><div class="watchlist-empty">Your watchlist is empty — add films you want to see.</div></div>
+    </div>
+    </div>
 </main>
 
 <div id="error-bar"></div>
 <div id="success-bar"></div>
 
-<!-- EDIT MODAL -->
 <div id="edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEditModal()">
   <div class="modal-box">
     <div class="modal-title">Edit Film Entry</div>
@@ -3804,32 +3816,8 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       <button class="modal-delete-btn" onclick="deleteFromModal()">Delete Entry</button>
       <button class="modal-close-btn" onclick="closeEditModal()">Cancel</button>
     </div>
-    </table>
-      </div>
-    </div>
-<div class="section-label">Watchlist</div>
-    <div class="watchlist-card" id="watchlist-section">
-      <div class="watchlist-header">
-        <span style="font-family:var(--font-head);font-size:14px;font-weight:700;">Want to Watch</span>
-        <span style="font-size:11px;color:var(--muted)" id="watchlist-count">0 films queued</span>
-      </div>
-      <div class="watchlist-add-row">
-        <input type="text" class="watchlist-add-input" id="watchlist-input" placeholder="Add a film title…" onkeydown="if(event.key==='Enter')addToWatchlist()">
-        <input type="text" class="watchlist-add-input" id="watchlist-note-input" placeholder="Note (optional)" style="max-width:200px;" onkeydown="if(event.key==='Enter')addToWatchlist()">
-        <button class="watchlist-add-btn" onclick="addToWatchlist()">+ Add</button>
-      </div>
-      <div id="watchlist-items"><div class="watchlist-empty">Your watchlist is empty — add films you want to see.</div></div>
-    </div>
-    </div>
-  </div>
-</main>
-
   </div>
 </div>
-
-<!-- WATCHLIST MODAL / PANEL is inline in dashboard -->
-
-<script>
 // ══════════════════════════════════════════════
 //  FIREBASE SETUP
 //  Replace placeholder values with YOUR Firebase
