@@ -181,7 +181,8 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
 .filter-count{font-size:10px;color:var(--muted);white-space:nowrap;}
 
 /* ── WATCHLIST ── */
-.watchlist-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:40px;}
+.watchlist-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:40px;position:relative;}
+.watchlist-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
 .watchlist-header{padding:20px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
 .watchlist-add-row{display:flex;gap:10px;padding:16px 28px;border-bottom:1px solid var(--border);align-items:center;}
 .watchlist-add-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:9px 14px;outline:none;transition:border-color .2s;}
@@ -4017,7 +4018,16 @@ async function submitLogEntry() {
     }
     if(firebaseReady&&moviesCol){ await saveToFirestore(movie); }
     else { enrichedData.push(movie); saveFallback(); buildDashboard(); if($('dashboard-section').style.display==='none'){hide('upload-section');$('dashboard-section').style.display='block';} }
-    ['log-title','log-date','log-time','log-rating'].forEach(id=>$(id).value='');
+    // 1. Auto-remove from watchlist if it exists
+    try {
+      const wlList = loadWatchlist();
+      const currentTitle = document.getElementById('log-title').value;
+      const wlItem = wlList.find(w => w.title.toLowerCase().trim() === currentTitle.toLowerCase().trim());
+      if (wlItem) removeFromWatchlist(wlItem.id);
+    } catch(e) {}
+
+    // 2. Clear the form inputs
+    ['log-title','log-date','log-time','log-rating'].forEach(id => document.getElementById(id).value = '');
     clearTagState('log-tags-state','log-tag-wrap');
     st.textContent='';
   } catch(err){
@@ -4657,19 +4667,37 @@ function moveToLog(title) {
 }
 
 function renderWatchlist() {
-  const list=loadWatchlist();
-  const container=$('watchlist-items');
-  $('watchlist-count').textContent=`${list.length} film${list.length!==1?'s':''} queued`;
-  if(!list.length){container.innerHTML='<div class="watchlist-empty">Your watchlist is empty — add films you want to see.</div>';return;}
-  container.innerHTML=list.map(w=>`
-    <div class="watchlist-item">
-      <span class="watchlist-title">${w.title}</span>
-      <span class="watchlist-note">${w.note||''}</span>
-      <span style="color:var(--muted);font-size:10px;white-space:nowrap">${w.added||''}</span>
-      <button class="watchlist-log-btn" onclick="moveToLog('${w.title.replace(/'/g,"\\'")}')">Log as Watched</button>
-      <button class="watchlist-del-btn" onclick="removeFromWatchlist('${w.id}')" title="Remove">×</button>
-    </div>
-  `).join('');
+  const list = loadWatchlist();
+  const container = $('watchlist-items');
+  const countEl = $('watchlist-count');
+  if(countEl) countEl.textContent = `${list.length} film${list.length !== 1 ? 's' : ''} queued`;
+  
+  if (!list.length) {
+    container.innerHTML = '<div class="watchlist-empty">Your watchlist is empty — add films you want to see.</div>';
+    return;
+  }
+
+  const today = new Date();
+  container.innerHTML = list.map(w => {
+    let daysStr = '';
+    // Calculate days if the item has a timestamp
+    if (w.id) {
+      const addedDate = new Date(parseInt(w.id)); // Assuming ID is a timestamp
+      const diffTime = Math.abs(today - addedDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      daysStr = diffDays === 0 ? 'Added today' : `${diffDays}d unwatched`;
+    }
+    
+    return `
+      <div class="watchlist-item">
+        <span class="watchlist-title">${w.title}</span>
+        <span class="watchlist-note">${w.note || ''}</span>
+        <span style="color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;background:rgba(255,255,255,0.04);padding:4px 8px;border-radius:2px;margin-right:12px;border:1px solid var(--border);">${daysStr}</span>
+        <button class="watchlist-log-btn" onclick="moveToLog('${w.title.replace(/'/g, "\\'")}')">Log</button>
+        <button class="watchlist-del-btn" onclick="removeFromWatchlist('${w.id}')" title="Remove">×</button>
+      </div>
+    `;
+  }).join('');
 }
 
 // ──────────────────────────────────────────────
