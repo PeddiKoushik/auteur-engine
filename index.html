@@ -370,7 +370,16 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       </div>
 
     </div>
-
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 40px;">
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Eras Explored (Decades)</div>
+        <div class="chart-container"><canvas id="decadesChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Tag Analysis</div>
+        <div class="chart-container"><canvas id="tagsChart"></canvas></div>
+      </div>
+    </div>
     <div class="section-label">All Films</div>
     <div class="table-card">
       <div class="table-header">
@@ -4154,7 +4163,111 @@ function exportData(){
 // ──────────────────────────────────────────────
 //  DASHBOARD
 // ──────────────────────────────────────────────
-function buildDashboard(){
+function renderDistributionCharts(moviesData) {
+  const style = getComputedStyle(document.documentElement);
+  const accent = style.getPropertyValue('--accent').trim();
+  const accent2 = style.getPropertyValue('--accent2').trim();
+  const surface2 = style.getPropertyValue('--surface2').trim();
+  const border = style.getPropertyValue('--border').trim();
+  const muted = style.getPropertyValue('--muted').trim();
+
+  Chart.defaults.color = muted;
+  Chart.defaults.font.family = "'DM Mono', monospace";
+
+  const decadeCounts = {};
+  moviesData.forEach(m => {
+    if (m.release_year) {
+      const decade = Math.floor(parseInt(m.release_year) / 10) * 10;
+      decadeCounts[`${decade}s`] = (decadeCounts[`${decade}s`] || 0) + 1;
+    }
+  });
+
+  const decadeLabels = Object.keys(decadeCounts).sort();
+  const decadeData = decadeLabels.map(d => decadeCounts[d]);
+
+  if(charts.decades) charts.decades.destroy();
+  charts.decades = new Chart(document.getElementById('decadesChart'), {
+    type: 'bar',
+    data: {
+      labels: decadeLabels,
+      datasets: [{
+        label: 'Films Logged',
+        data: decadeData,
+        backgroundColor: accent2 + '40', 
+        borderColor: accent2,
+        borderWidth: 1,
+        borderRadius: 3
+      }]
+    },
+    options: chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}})
+  });
+
+  const tagStats = {};
+  moviesData.forEach(m => {
+    const tags = m.tags || []; 
+    const rating = m.user_rating != null ? parseFloat(m.user_rating) : null;
+
+    tags.forEach(tag => {
+      if (!tagStats[tag]) tagStats[tag] = { count: 0, totalRating: 0, ratedCount: 0 };
+      tagStats[tag].count += 1;
+      if (rating !== null) {
+        tagStats[tag].totalRating += rating;
+        tagStats[tag].ratedCount += 1;
+      }
+    });
+  });
+
+  const topTags = Object.keys(tagStats)
+    .map(tag => ({
+      name: tag,
+      count: tagStats[tag].count,
+      avg: tagStats[tag].ratedCount > 0 ? (tagStats[tag].totalRating / tagStats[tag].ratedCount) : 0
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  if(charts.tags) charts.tags.destroy();
+  charts.tags = new Chart(document.getElementById('tagsChart'), {
+    type: 'bar',
+    data: {
+      labels: topTags.map(t => t.name),
+      datasets: [
+        {
+          type: 'line',
+          label: 'Avg Rating',
+          data: topTags.map(t => t.avg.toFixed(1)),
+          borderColor: accent,
+          backgroundColor: accent,
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.3,
+          yAxisID: 'y-rating'
+        },
+        {
+          type: 'bar',
+          label: 'Movie Count',
+          data: topTags.map(t => t.count),
+          backgroundColor: surface2,
+          borderColor: border,
+          borderWidth: 1,
+          borderRadius: 3,
+          yAxisID: 'y-count'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, usePointStyle: true, color: muted, font: {family: 'DM Mono'} } } },
+      scales: {
+        'y-count': { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,.04)' }, ticks: {color: muted, font: {family: 'DM Mono'}} },
+        'y-rating': { type: 'linear', position: 'right', grid: { display: false }, min: 0, max: 10, ticks: {color: muted, font: {family: 'DM Mono'}} },
+        x: { grid: { display: false }, ticks: {color: muted, font: {family: 'DM Mono'}} }
+      }
+    }
+  });
+}
+  function buildDashboard(){
   const valid=enrichedData.filter(m=>!m.error);
   buildPersona(valid);
   $('stat-total').textContent=valid.length;
@@ -4166,6 +4279,7 @@ function buildDashboard(){
   buildGenreChart(valid); buildScatterChart(valid); buildDirectorsChart(valid);
   buildLanguageChart(valid); buildTimelineChart(valid); buildCountryChart(valid);
   buildGenreTimeChart(valid); buildHeatmap(valid); buildTable(enrichedData);
+  renderDistributionCharts(valid);
   renderWatchlist();
 }
 
