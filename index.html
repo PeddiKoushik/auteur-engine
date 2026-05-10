@@ -3770,7 +3770,7 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       <td style="color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis">India</td>
       <td><span style="color:var(--muted)">—</span></td>
       <td><span style="color:var(--muted);font-size:9px;letter-spacing:1px;">CSV</span></td>
-   </tr></tbody>
+</tr></tbody>
         </table>
       </div>
     </div>
@@ -3788,10 +3788,8 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       </div>
       <div id="watchlist-items"><div class="watchlist-empty">Your watchlist is empty — add films you want to see.</div></div>
     </div>
-    </div>
-</main>
 
-<div id="error-bar"></div>
+  </div> </main> <div id="error-bar"></div>
 <div id="success-bar"></div>
 
 <div id="edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEditModal()">
@@ -3805,12 +3803,12 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
       <div class="modal-field"><label>Your Rating (0–10)</label><input type="number" id="edit-rating" min="0" max="10" step="0.5"></div>
       <div class="modal-field"><label>Director</label><input type="text" id="edit-director"></div>
       <div class="modal-field full">
-        <label>Tags (press Enter or comma to add)</label>
+        <label>Tags</label>
         <div class="tag-input-wrap" id="edit-tag-wrap" onclick="document.getElementById('edit-tag-input').focus()">
-          <input type="text" id="edit-tag-input" class="tag-text-input" placeholder="e.g. cinema hall, rewatch…" onkeydown="handleTagKeydown(event,'edit-tag-wrap','edit-tags-state')">
+          <input type="text" id="edit-tag-input" class="tag-text-input" onkeydown="handleTagKeydown(event,'edit-tag-wrap','edit-tags-state')">
         </div>
       </div>
-      <div class="modal-field full"><label>Notes</label><input type="text" id="edit-notes" placeholder="Any personal notes…"></div>
+      <div class="modal-field full"><label>Notes</label><input type="text" id="edit-notes"></div>
     </div>
     <div class="modal-actions">
       <button class="modal-save-btn" onclick="saveEditModal()">Save Changes</button>
@@ -3819,6 +3817,8 @@ tr.clickable-row:hover td{background:rgba(123,110,246,.06)!important;}
     </div>
   </div>
 </div>
+
+<script>
 // ══════════════════════════════════════════════
 //  FIREBASE SETUP
 //  Replace placeholder values with YOUR Firebase
