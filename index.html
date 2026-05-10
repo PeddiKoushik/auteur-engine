@@ -4178,32 +4178,66 @@ function renderDistributionCharts(moviesData) {
   Chart.defaults.color = muted;
   Chart.defaults.font.family = "'DM Mono', monospace";
 
-  const decadeCounts = {};
+const decadeStats = {};
   moviesData.forEach(m => {
     if (m.release_year) {
       const decade = Math.floor(parseInt(m.release_year) / 10) * 10;
-      decadeCounts[`${decade}s`] = (decadeCounts[`${decade}s`] || 0) + 1;
+      const key = `${decade}s`;
+      if (!decadeStats[key]) decadeStats[key] = { count: 0, totalRating: 0, ratedCount: 0 };
+      
+      decadeStats[key].count += 1;
+      if (m.user_rating != null) {
+        decadeStats[key].totalRating += parseFloat(m.user_rating);
+        decadeStats[key].ratedCount += 1;
+      }
     }
   });
 
-  const decadeLabels = Object.keys(decadeCounts).sort();
-  const decadeData = decadeLabels.map(d => decadeCounts[d]);
+  const decadeLabels = Object.keys(decadeStats).sort();
+  const decadeCountData = decadeLabels.map(d => decadeStats[d].count);
+  const decadeAvgData = decadeLabels.map(d => 
+    decadeStats[d].ratedCount > 0 ? (decadeStats[d].totalRating / decadeStats[d].ratedCount).toFixed(1) : 0
+  );
 
   if(charts.decades) charts.decades.destroy();
   charts.decades = new Chart(document.getElementById('decadesChart'), {
     type: 'bar',
     data: {
       labels: decadeLabels,
-      datasets: [{
-        label: 'Films Logged',
-        data: decadeData,
-        backgroundColor: accent2 + '40', 
-        borderColor: accent2,
-        borderWidth: 1,
-        borderRadius: 3
-      }]
+      datasets: [
+        {
+          type: 'line',
+          label: 'Avg Rating',
+          data: decadeAvgData,
+          borderColor: accent,
+          backgroundColor: accent,
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.3,
+          yAxisID: 'y-rating'
+        },
+        {
+          type: 'bar',
+          label: 'Films Logged',
+          data: decadeCountData,
+          backgroundColor: accent2 + '40', 
+          borderColor: accent2,
+          borderWidth: 1,
+          borderRadius: 3,
+          yAxisID: 'y-count'
+        }
+      ]
     },
-    options: chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}})
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, usePointStyle: true, color: muted, font: {family: 'DM Mono'} } } },
+      scales: {
+        'y-count': { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,.04)' }, ticks: {color: muted, font: {family: 'DM Mono'}, stepSize: 1} },
+        'y-rating': { type: 'linear', position: 'right', grid: { display: false }, min: 0, max: 10, ticks: {color: muted, font: {family: 'DM Mono'}} },
+        x: { grid: { display: false }, ticks: {color: muted, font: {family: 'DM Mono'}} }
+      }
+    }
   });
 
   const tagStats = {};
