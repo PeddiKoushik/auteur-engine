@@ -296,7 +296,6 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
 .ctrl-btn,.key-chip{border-color:rgba(0,0,0,.12);}
 .log-submit-btn,.modal-save-btn{box-shadow:0 1px 3px rgba(0,113,227,.3);}
 /* ── THEATRES SECTION ── */
-#theatres-section{display:none;}
 .theatre-subnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
 .theatre-subtabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .theatre-subtab{padding:8px 18px;font-size:10px;letter-spacing:0.3px;text-transform:uppercase;cursor:pointer;background:transparent;color:var(--muted);border:none;font-family:var(--font-mono);transition:background .2s,color .2s;}
@@ -376,7 +375,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.2</span>
+    <span class="header-tag">Cinema Intelligence v9.3</span>
   </div>
 </header>
 
@@ -590,7 +589,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
     </div>
   </div>
   <!-- ══════════════ THEATRES SECTION ══════════════ -->
-  <div id="theatres-section">
+  <div id="theatres-section" class="section-hidden">
 
     <div class="theatre-subnav">
       <div class="theatre-subtabs">
