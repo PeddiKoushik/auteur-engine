@@ -375,7 +375,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.4</span>
+    <span class="header-tag">Cinema Intelligence v9.5</span>
   </div>
 </header>
 
@@ -386,6 +386,13 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
 
     <!-- ENTRY PANEL -->
     <div id="upload-section">
+
+      <div style="max-width:720px;width:100%;margin:0 auto 14px;">
+        <button onclick="backToDashboard()" style="background:transparent;border:none;color:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:0.2px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:4px 0;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back to Dashboard
+        </button>
+      </div>
 
       <div style="max-width:720px;width:100%;margin:0 auto 20px;">
         <div class="tab-toggle">
@@ -462,6 +469,14 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
               <label for="tlf-notes">Notes <span style="opacity:.5">(optional)</span></label>
               <input type="text" id="tlf-notes" placeholder="Front row, sound was incredible…"/>
             </div>
+          </div>
+
+          <div class="tags-section" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+            <div class="tags-label">Tags</div>
+            <div class="tags-input-row"><input type="text" id="log-tag-input" placeholder="Add a custom tag…" onkeydown="if(event.key==='Enter'){event.preventDefault();addLogTag();}"/><button class="tag-add-btn" onclick="addLogTag()">+ Add</button></div>
+            <div class="tags-list" id="log-tags-list"></div>
+            <div class="tags-presets-label">Quick tags</div>
+            <div class="tags-presets" id="log-tags-presets"></div>
           </div>
 
           <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
@@ -981,6 +996,10 @@ function switchTab(tab){
 function showEntryPanel(){
   hide('dashboard-section');$('upload-section').style.display='flex';switchTab('log');
 }
+function backToDashboard(){
+  hide('upload-section');hide('progress-section');
+  $('dashboard-section').style.display='block';
+}
 
 function switchTheatreView(view){
   currentTheatreView=view;
@@ -1241,6 +1260,7 @@ async function submitLogEntry(){
 
   try{
     const movie=await enrichMovieDoc(title,watch_date,watch_time,user_rating,'manual',apiKey);
+    if(logTags.length)movie.tags=[...logTags];
     let movieRef=null;
     if(firebaseReady&&moviesCol){
       movieRef=await saveToFirestore(movie);
@@ -1282,6 +1302,7 @@ async function submitLogEntry(){
     showSuccess(isTheatre?`"${title}" logged with theatre visit ✓`:`"${title}" logged and enriched ✓`);
     ['log-title','log-date','log-time','log-rating'].forEach(id=>$(id).value='');
     resetTheatreLogForm();
+    resetLogTags();
     st.textContent='';
     if(!firebaseReady&&$('dashboard-section').style.display==='none'){hide('upload-section');$('dashboard-section').style.display='block';buildDashboard();}
   }catch(err){
@@ -1628,7 +1649,15 @@ function buildTable(data){
 //  EDIT MODAL (movies)
 // ──────────────────────────────────────────────
 let editingId=null, editTags=[];
+let logTags=[];
 const TAG_PRESETS=['Favourite','Rewatch','Masterpiece','Overrated','Underrated','Disturbing','Feel-good','Slow burn','Mind-bending','Visually stunning','Boring','Cult classic','Hidden gem'];
+
+function renderLogTagsList(){$('log-tags-list').innerHTML=logTags.map((t,i)=>`<span class="tag-chip">${t}<button class="tag-chip-remove" onclick="removeLogTag(${i})" title="Remove">×</button></span>`).join('');}
+function renderLogTagPresets(){$('log-tags-presets').innerHTML=TAG_PRESETS.filter(p=>!logTags.includes(p)).map(p=>`<button class="tag-preset-btn" onclick="addLogPresetTag('${p}')">${p}</button>`).join('');}
+function addLogTag(){const val=$('log-tag-input').value.trim();if(!val)return;if(logTags.includes(val)){showError(`Tag "${val}" already added.`);return;}if(logTags.length>=20){showError('Max 20 tags.');return;}logTags.push(val);$('log-tag-input').value='';renderLogTagsList();renderLogTagPresets();}
+function addLogPresetTag(tag){if(logTags.includes(tag))return;logTags.push(tag);renderLogTagsList();renderLogTagPresets();}
+function removeLogTag(i){logTags.splice(i,1);renderLogTagsList();renderLogTagPresets();}
+function resetLogTags(){logTags=[];renderLogTagsList();renderLogTagPresets();}
 
 function openEditModal(id){
   const m=enrichedData.find(x=>x._id===id);if(!m)return;
@@ -1984,6 +2013,7 @@ function renderWatchlist(){
 (function boot(){
   updateKeyChip();
   renderFormatChips();
+  renderLogTagsList();renderLogTagPresets();
   hide('upload-section');
   $('dashboard-section').style.display='block';
   buildDashboard();
