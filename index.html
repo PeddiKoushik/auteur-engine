@@ -375,7 +375,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.6</span>
+    <span class="header-tag">Cinema Intelligence v9.7</span>
   </div>
 </header>
 
@@ -569,7 +569,19 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         </div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Country of Production</div><div class="chart-container"><canvas id="chart-country"></canvas></div></div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent3)"></span>Films by Decade <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(bars = count, line = avg rating)</span></div><div class="chart-container"><canvas id="chart-decade"></canvas></div></div>
-        <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Tag Analysis <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(top 10 by frequency)</span></div><div class="chart-container"><canvas id="chart-tags"></canvas></div></div>
+        <div class="chart-card wide">
+          <div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Tag Analysis <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">click a column to sort</span></div>
+          <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;">
+            <table style="width:100%;">
+              <thead><tr>
+                <th onclick="sortTagsTable('tag')" style="cursor:pointer;user-select:none;">Tag <span id="tag-sort-tag" style="color:var(--accent);"></span></th>
+                <th onclick="sortTagsTable('count')" style="cursor:pointer;user-select:none;">Times Used <span id="tag-sort-count" style="color:var(--accent);"></span></th>
+                <th onclick="sortTagsTable('avg')" style="cursor:pointer;user-select:none;">Avg Rating <span id="tag-sort-avg" style="color:var(--accent);"></span></th>
+              </tr></thead>
+              <tbody id="tags-table-body"></tbody>
+            </table>
+          </div>
+        </div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Genre Preference Over Time <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(Top 3)</span></div><div class="chart-container"><canvas id="chart-genre-time"></canvas></div></div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Watch Pattern</div><div class="heatmap-wrap" id="heatmap-container"></div></div>
       </div>
@@ -1398,10 +1410,11 @@ function buildDashboard(){
   $('stat-theatre-visits').textContent=valid.length?`${theatreCount} (${Math.round(theatreCount/valid.length*100)}%)`:'0';
 
   buildInsights(enrichedData);
+  buildTagsTable(valid);
   if(valid.length){
     buildGenreChart(valid);buildScatterChart(valid);buildDirectorLoyaltyChart(valid);
     buildLanguageChart(valid);buildTimelineChart(valid);buildCountryChart(valid);
-    buildGenreTimeChart(valid);buildDecadeChart(valid);buildTagsChart(valid);buildHeatmap(valid);
+    buildGenreTimeChart(valid);buildDecadeChart(valid);buildHeatmap(valid);
   }
   populateFilterDropdowns();
   applyFilters();
@@ -1544,37 +1557,44 @@ function buildDirectorLoyaltyChart(data){
     }
   });
 }
-function buildTagsChart(data){
+let tagsTableData=[], tagsSortKey='count', tagsSortDir='desc';
+function buildTagsTable(data){
   const map={};
   data.forEach(m=>(m.tags||[]).forEach(t=>{
     if(!map[t])map[t]={count:0,ratings:[]};
     map[t].count++;
     if(m.user_rating!=null)map[t].ratings.push(m.user_rating);
   }));
-  const entries=Object.entries(map)
-    .map(([tag,v])=>({tag,count:v.count,avg:v.ratings.length?v.ratings.reduce((s,r)=>s+r,0)/v.ratings.length:null}))
-    .sort((a,b)=>b.count-a.count).slice(0,10);
-  if(charts.tags)charts.tags.destroy();
-  if(!entries.length)return;
-  charts.tags=new Chart($('chart-tags'),{
-    type:'bar',
-    data:{
-      labels:entries.map(e=>e.tag),
-      datasets:[
-        {label:'Times Used',data:entries.map(e=>e.count),backgroundColor:'rgba(0,113,227,.75)',borderRadius:3,borderSkipped:false},
-        {label:'Avg Rating',data:entries.map(e=>e.avg!=null?e.avg:0),backgroundColor:'rgba(255,149,0,.75)',borderRadius:3,borderSkipped:false}
-      ]
-    },
-    options:{
-      indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,position:'bottom',labels:{color:'#6e6e73',font:{size:10},boxWidth:10,padding:14}},
-        tooltip:{backgroundColor:'#ffffff',borderColor:'#d2d2d7',borderWidth:1,titleColor:'#1d1d1f',bodyColor:'#6e6e73'}},
-      scales:{
-        x:{...scaleStyle(),ticks:{...scaleStyle().ticks,stepSize:1}},
-        y:{...scaleStyle(),grid:{display:false}}
-      }
-    }
+  tagsTableData=Object.entries(map).map(([tag,v])=>({
+    tag,count:v.count,
+    avg:v.ratings.length?parseFloat((v.ratings.reduce((s,r)=>s+r,0)/v.ratings.length).toFixed(1)):null
+  }));
+  renderTagsTable();
+}
+function sortTagsTable(key){
+  if(tagsSortKey===key){tagsSortDir=tagsSortDir==='asc'?'desc':'asc';}
+  else{tagsSortKey=key;tagsSortDir=key==='tag'?'asc':'desc';}
+  renderTagsTable();
+}
+function renderTagsTable(){
+  const tbody=$('tags-table-body');if(!tbody)return;
+  const rows=[...tagsTableData].sort((a,b)=>{
+    if(tagsSortKey==='tag'){const r=a.tag.toLowerCase().localeCompare(b.tag.toLowerCase());return tagsSortDir==='asc'?r:-r;}
+    const av=a[tagsSortKey]==null?-1:a[tagsSortKey], bv=b[tagsSortKey]==null?-1:b[tagsSortKey];
+    return tagsSortDir==='asc'?av-bv:bv-av;
   });
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:24px;">No tags logged yet — add some from the Log a Film panel.</td></tr>`;}
+  else{
+    tbody.innerHTML=rows.map(r=>{
+      const rc=r.avg==null?'':r.avg>=7?'rating-high':r.avg>=4?'rating-mid':'rating-low';
+      return `<tr>
+        <td style="font-weight:500;">${r.tag}</td>
+        <td style="color:var(--muted);">${r.count}</td>
+        <td>${r.avg!=null?`<span class="rating-pill ${rc}">${r.avg}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+  ['tag','count','avg'].forEach(k=>{const el=$('tag-sort-'+k);if(el)el.textContent=k===tagsSortKey?(tagsSortDir==='asc'?'↑':'↓'):'';});
 }
 function buildLanguageChart(data){const freq={};data.forEach(m=>{if(!m.language)return;const n=langName(m.language);freq[n]=(freq[n]||0)+1;});const s=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);if(!s.length)return;if(charts.language)charts.language.destroy();charts.language=new Chart($('chart-language'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>`hsla(${160+i*20},70%,60%,.75)`),borderRadius:3,borderSkipped:false}]},options:chartOptions({x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{stepSize:1}}})});}
 function buildDecadeChart(data){
