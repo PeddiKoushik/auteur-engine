@@ -118,6 +118,8 @@ main{position:relative;z-index:1;padding:40px 48px;max-width:1440px;margin:0 aut
 .geo-btn:hover{border-color:var(--accent2);}
 #pin-map{display:none;height:220px;border:1px solid var(--border);margin-top:8px;}
 #pin-map.open{display:block;}
+#et-pin-map{display:none;height:200px;border:1px solid var(--border);margin-top:8px;border-radius:8px;overflow:hidden;}
+#et-pin-map.open{display:block;}
 .rating-slider-row{display:flex;flex-direction:column;gap:6px;}
 .rating-slider-row .rs-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:0.4px;text-transform:uppercase;color:var(--muted);}
 .rating-slider-row .rs-head span:last-child{color:var(--accent);}
@@ -375,7 +377,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.7</span>
+    <span class="header-tag">Cinema Intelligence v9.8</span>
   </div>
 </header>
 
@@ -728,6 +730,61 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         <div class="tags-presets" id="tags-presets"></div>
       </div>
       <div id="edit-screening-note" style="display:none;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:16px;"></div>
+
+      <div id="edit-link-theatre-block" style="display:none;border-top:1px solid var(--border);padding-top:16px;">
+        <button type="button" class="ctrl-btn" onclick="toggleEditTheatreFields()" style="margin-bottom:4px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="6.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="17.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="6.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="2"/></svg>
+          Add Theatre Visit
+        </button>
+
+        <div id="et-fields" style="display:none;margin-top:14px;flex-direction:column;gap:14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px;">
+          <div class="tlf-field">
+            <label for="et-theatre-query">Theatre</label>
+            <input type="text" id="et-theatre-query" placeholder="Search or type theatre name…" oninput="onEditTheatreQueryInput()" autocomplete="off"/>
+            <div id="et-theatre-dropdown" class="tlf-dropdown" style="display:none;"></div>
+          </div>
+
+          <div id="et-new-theatre-block" style="display:none;flex-direction:column;gap:12px;">
+            <div class="tlf-row">
+              <div class="tlf-field"><label for="et-new-city">City</label><input type="text" id="et-new-city" placeholder="e.g. Hyderabad"/></div>
+              <div class="tlf-field"><label for="et-new-address">Address</label><input type="text" id="et-new-address" placeholder="e.g. Phoenix Arena Mall"/></div>
+            </div>
+            <div class="geo-actions">
+              <button type="button" class="geo-btn" onclick="geocodeEditTheatre()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.3"/></svg>Find on Map</button>
+              <button type="button" class="geo-btn" onclick="openEditPinPicker()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/></svg>Drop Pin Manually</button>
+              <span id="et-geo-status"></span>
+            </div>
+            <div id="et-geo-results" class="geo-results"></div>
+            <div id="et-pin-map"></div>
+            <div class="tlf-row">
+              <div class="tlf-field"><label for="et-new-lat">Latitude</label><input type="text" id="et-new-lat" placeholder="17.3616"/></div>
+              <div class="tlf-field"><label for="et-new-lng">Longitude</label><input type="text" id="et-new-lng" placeholder="78.5346"/></div>
+            </div>
+          </div>
+
+          <div class="tlf-row">
+            <div class="tlf-field"><label for="et-screen">Screen</label><input type="text" id="et-screen" placeholder="Screen 6"/></div>
+            <div class="tlf-field"><label for="et-language">Language</label><input type="text" id="et-language" placeholder="e.g. Telugu"/></div>
+          </div>
+
+          <div>
+            <label style="font-size:9px;letter-spacing:0.4px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px;">Format</label>
+            <div class="chip-row" id="et-format-chip-row"></div>
+          </div>
+
+          <div class="tlf-row">
+            <div class="tlf-field"><label for="et-price">Ticket Price (₹)</label><input type="number" id="et-price" placeholder="450"/></div>
+            <div class="tlf-field"><label for="et-seat">Seat Number</label><input type="text" id="et-seat" placeholder="F9"/></div>
+          </div>
+
+          <div class="tlf-field">
+            <label for="et-notes">Notes <span style="opacity:.5">(optional)</span></label>
+            <input type="text" id="et-notes" placeholder="Front row, sound was incredible…"/>
+          </div>
+
+          <button class="log-submit-btn" type="button" onclick="saveTheatreVisitFromEdit()" style="align-self:flex-start;">Save Theatre Visit</button>
+        </div>
+      </div>
       <div class="modal-footer">
         <button class="modal-delete-btn" onclick="deleteFromModal()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-1px;margin-right:4px;"><path d="M6 6l12 12M18 6L6 18"/></svg>Delete Film</button>
         <div style="display:flex;gap:10px;"><button class="modal-cancel-btn" onclick="closeEditModal()">Cancel</button><button class="modal-save-btn" onclick="saveEditModal()">Save Changes</button></div>
@@ -1220,6 +1277,157 @@ document.addEventListener('click',e=>{
 });
 
 // ──────────────────────────────────────────────
+//  EDIT MODAL — "Add Theatre Visit" (link an already-logged film to a screening)
+// ──────────────────────────────────────────────
+let etFormState={theatreId:null,isNewTheatre:false}, etSelectedFormats=[], etPinMap=null, etPinMarker=null;
+
+function toggleEditTheatreFields(){
+  const el=$('et-fields');
+  const open=el.style.display==='flex';
+  el.style.display=open?'none':'flex';
+  if(!open)renderEditFormatChips();
+}
+function resetEditTheatreForm(){
+  $('et-fields').style.display='none';
+  $('et-theatre-query').value='';$('et-new-city').value='';$('et-new-address').value='';
+  $('et-new-lat').value='';$('et-new-lng').value='';$('et-screen').value='';$('et-language').value='';
+  $('et-price').value='';$('et-seat').value='';$('et-notes').value='';
+  $('et-new-theatre-block').style.display='none';$('et-theatre-dropdown').style.display='none';
+  $('et-geo-results').innerHTML='';$('et-geo-status').textContent='';
+  etSelectedFormats=[];etFormState={theatreId:null,isNewTheatre:false};
+  renderEditFormatChips();
+}
+function onEditTheatreQueryInput(){
+  const q=$('et-theatre-query').value.trim().toLowerCase();
+  etFormState.theatreId=null;etFormState.isNewTheatre=false;
+  $('et-new-theatre-block').style.display='none';
+  const dd=$('et-theatre-dropdown');
+  if(!q){dd.style.display='none';dd.innerHTML='';return;}
+  const matches=theatresData.filter(t=>t.name.toLowerCase().includes(q)).slice(0,5);
+  let html=matches.map(t=>`<div class="tlf-dropdown-item" onclick="selectExistingEditTheatre('${t._id}')">${t.name} <span style="color:var(--muted)">· ${t.city}</span></div>`).join('');
+  if(!matches.length){
+    html+=`<div class="tlf-dropdown-item add-new" onclick="markNewEditTheatre()">+ Add new theatre "${$('et-theatre-query').value.trim()}"</div>`;
+  }
+  dd.innerHTML=html;dd.style.display='block';
+}
+function selectExistingEditTheatre(id){
+  const t=theatresData.find(x=>x._id===id);if(!t)return;
+  etFormState.theatreId=id;etFormState.isNewTheatre=false;
+  $('et-theatre-query').value=t.name;
+  $('et-theatre-dropdown').style.display='none';
+  $('et-new-theatre-block').style.display='none';
+}
+function markNewEditTheatre(){
+  etFormState.isNewTheatre=true;etFormState.theatreId=null;
+  $('et-theatre-dropdown').style.display='none';
+  $('et-new-theatre-block').style.display='flex';
+}
+async function geocodeEditTheatre(){
+  const name=$('et-theatre-query').value.trim();
+  const city=$('et-new-city').value.trim();
+  if(!name){showError('Enter a theatre name first.');return;}
+  const query=city?`${name}, ${city}, India`:`${name}, India`;
+  $('et-geo-status').textContent='Searching…';
+  $('et-geo-results').innerHTML='';
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=${encodeURIComponent(query)}`;
+    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+    const results=await res.json();
+    $('et-geo-status').textContent='';
+    if(!results.length){
+      $('et-geo-results').innerHTML='<div style="font-size:11px;color:var(--muted);">No matches found. Try a shorter name, or drop a pin manually below.</div>';
+      return;
+    }
+    $('et-geo-results').innerHTML=results.map((r,i)=>`<div class="geo-result" onclick="pickEditGeocodeResult(${i})">${r.display_name}</div>`).join('');
+    window._etGeoResults=results;
+  }catch(e){
+    $('et-geo-status').textContent='';
+    $('et-geo-results').innerHTML='<div style="font-size:11px;color:var(--accent3);">Lookup failed. Try again or drop a pin manually.</div>';
+  }
+}
+function pickEditGeocodeResult(i){
+  const r=window._etGeoResults[i];if(!r)return;
+  $('et-new-lat').value=parseFloat(r.lat).toFixed(6);
+  $('et-new-lng').value=parseFloat(r.lon).toFixed(6);
+  $('et-geo-results').innerHTML=`<div style="font-size:11px;color:var(--accent);">✓ Location set — you can fine-tune with "Drop Pin Manually" if needed.</div>`;
+  if(!$('et-new-address').value)$('et-new-address').value=r.display_name.split(',').slice(0,3).join(',');
+}
+function openEditPinPicker(){
+  const el=$('et-pin-map');
+  el.classList.add('open');
+  if(!etPinMap){
+    const startLat=parseFloat($('et-new-lat').value)||20.5937, startLng=parseFloat($('et-new-lng').value)||78.9629;
+    etPinMap=L.map('et-pin-map').setView([startLat,startLng],parseFloat($('et-new-lat').value)?13:5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(etPinMap);
+    etPinMap.on('click',e=>{
+      $('et-new-lat').value=e.latlng.lat.toFixed(6);
+      $('et-new-lng').value=e.latlng.lng.toFixed(6);
+      if(etPinMarker)etPinMap.removeLayer(etPinMarker);
+      etPinMarker=L.marker(e.latlng).addTo(etPinMap);
+    });
+    if(parseFloat($('et-new-lat').value)){etPinMarker=L.marker([startLat,startLng]).addTo(etPinMap);}
+  }
+  setTimeout(()=>etPinMap.invalidateSize(),100);
+}
+function renderEditFormatChips(){
+  const row=$('et-format-chip-row');if(!row)return;
+  row.innerHTML=formatOptions.map(f=>
+    `<div class="chip ${etSelectedFormats.includes(f)?'active':''}" onclick="toggleEditFormatChip('${f.replace(/'/g,"\\'")}')">${f}</div>`
+  ).join('');
+}
+function toggleEditFormatChip(f){
+  if(etSelectedFormats.includes(f))etSelectedFormats=etSelectedFormats.filter(x=>x!==f);
+  else etSelectedFormats=[...etSelectedFormats,f];
+  renderEditFormatChips();
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#et-theatre-query')&&!e.target.closest('#et-theatre-dropdown')){
+    const dd=$('et-theatre-dropdown');if(dd)dd.style.display='none';
+  }
+});
+
+async function saveTheatreVisitFromEdit(){
+  if(!editingId)return;
+  if(!firebaseReady||!theatresCol||!screeningsCol){showError('Firestore is not connected — cannot link a theatre visit right now.');return;}
+  if(!$('et-theatre-query').value.trim()){showError('Please enter or select a theatre.');return;}
+  if(etFormState.isNewTheatre&&(!$('et-new-lat').value||!$('et-new-lng').value)){
+    showError('New theatre needs a location — use "Find on Map" or drop a pin manually.');return;
+  }
+  const movie=enrichedData.find(x=>x._id===editingId);if(!movie)return;
+  try{
+    let theatreId=etFormState.theatreId;
+    if(etFormState.isNewTheatre){
+      const newTheatre={
+        name:$('et-theatre-query').value.trim(),
+        city:$('et-new-city').value.trim()||null,
+        address:$('et-new-address').value.trim()||null,
+        lat:parseFloat($('et-new-lat').value),
+        lng:parseFloat($('et-new-lng').value),
+      };
+      const tRef=await theatresCol.add(newTheatre);
+      theatreId=tRef.id;
+    }
+    if(!theatreId){showError('Please select or add a theatre.');return;}
+    const screening={
+      theatreId, movieDocId:editingId,
+      title:$('edit-title').value.trim()||movie.title,
+      date:$('edit-date').value||movie.watch_date,
+      screen:$('et-screen').value.trim()||null,
+      format: etSelectedFormats[0]||'Regular', formats: etSelectedFormats.length?etSelectedFormats:['Regular'],
+      language:$('et-language').value.trim()||null,
+      ticketPrice: $('et-price').value!==''?parseFloat($('et-price').value):null,
+      seatNumber: $('et-seat').value.trim()||null,
+      userRating: $('edit-rating').value!==''?parseFloat($('edit-rating').value):null,
+      notes: $('et-notes').value.trim()||null,
+      loggedAt: new Date().toISOString(),
+    };
+    await screeningsCol.add(screening);
+    showSuccess(`Theatre visit linked to "${screening.title}" ✓`);
+    openEditModal(editingId); // refresh modal to show the "linked" note instead
+  }catch(err){showError('Save failed: '+err.message);}
+}
+
+// ──────────────────────────────────────────────
 //  TMDB API
 // ──────────────────────────────────────────────
 const TMDB='https://api.themoviedb.org/3';
@@ -1696,12 +1904,16 @@ function openEditModal(id){
   renderTagsList();renderTagPresets();
   const linked=screeningsData.find(s=>s.movieDocId===id);
   const noteEl=$('edit-screening-note');
+  const linkBlock=$('edit-link-theatre-block');
   if(linked){
     const t=theatresData.find(x=>x._id===linked.theatreId);
     noteEl.style.display='block';
     noteEl.innerHTML=`${ICONS.film} This film is linked to a theatre screening at <strong style="color:var(--text)">${t?t.name:'a theatre'}</strong>. Ticket, seat and format details live on the <a href="#" onclick="switchMainTab('theatres');closeEditModal();return false;">Theatres tab</a> — edit them there.`;
+    linkBlock.style.display='none';
   }else{
     noteEl.style.display='none';
+    linkBlock.style.display='block';
+    resetEditTheatreForm();
   }
   $('edit-modal').classList.add('open');document.body.style.overflow='hidden';
   setTimeout(()=>$('edit-title').focus(),50);
