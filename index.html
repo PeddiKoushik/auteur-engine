@@ -377,7 +377,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.8</span>
+    <span class="header-tag">Cinema Intelligence v9.9</span>
   </div>
 </header>
 
@@ -443,8 +443,8 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
               <div id="geo-results" class="geo-results"></div>
               <div id="pin-map"></div>
               <div class="tlf-row">
-                <div class="tlf-field"><label for="tlf-new-lat">Latitude</label><input type="text" id="tlf-new-lat" placeholder="17.3616"/></div>
-                <div class="tlf-field"><label for="tlf-new-lng">Longitude</label><input type="text" id="tlf-new-lng" placeholder="78.5346"/></div>
+                <div class="tlf-field"><label for="tlf-new-lat">Latitude</label><input type="text" id="tlf-new-lat" placeholder="17.3616" oninput="onManualLatLngInput()"/></div>
+                <div class="tlf-field"><label for="tlf-new-lng">Longitude</label><input type="text" id="tlf-new-lng" placeholder="78.5346" oninput="onManualLatLngInput()"/></div>
               </div>
             </div>
 
@@ -757,8 +757,8 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
             <div id="et-geo-results" class="geo-results"></div>
             <div id="et-pin-map"></div>
             <div class="tlf-row">
-              <div class="tlf-field"><label for="et-new-lat">Latitude</label><input type="text" id="et-new-lat" placeholder="17.3616"/></div>
-              <div class="tlf-field"><label for="et-new-lng">Longitude</label><input type="text" id="et-new-lng" placeholder="78.5346"/></div>
+              <div class="tlf-field"><label for="et-new-lat">Latitude</label><input type="text" id="et-new-lat" placeholder="17.3616" oninput="onManualEditLatLngInput()"/></div>
+              <div class="tlf-field"><label for="et-new-lng">Longitude</label><input type="text" id="et-new-lng" placeholder="78.5346" oninput="onManualEditLatLngInput()"/></div>
             </div>
           </div>
 
@@ -1215,26 +1215,38 @@ function pickGeocodeResult(i){
   $('tlf-new-lng').value=parseFloat(r.lon).toFixed(6);
   $('geo-results').innerHTML=`<div style="font-size:11px;color:var(--accent);">✓ Location set — you can fine-tune with "Drop Pin Manually" if needed.</div>`;
   if(!$('tlf-new-address').value)$('tlf-new-address').value=r.display_name.split(',').slice(0,3).join(',');
+  openPinPicker();
 }
 
 function openPinPicker(){
-  const el=$('pin-map');
-  el.classList.add('open');
+  $('pin-map').classList.add('open');
   if(!pinMap){
-    const startLat=parseFloat($('tlf-new-lat').value)||20.5937, startLng=parseFloat($('tlf-new-lng').value)||78.9629;
-    pinMap=L.map('pin-map').setView([startLat,startLng],parseFloat($('tlf-new-lat').value)?13:5);
+    pinMap=L.map('pin-map').setView([20.5937,78.9629],5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(pinMap);
     pinMap.on('click',e=>{
       $('tlf-new-lat').value=e.latlng.lat.toFixed(6);
       $('tlf-new-lng').value=e.latlng.lng.toFixed(6);
-      if(pinMarker)pinMap.removeLayer(pinMarker);
-      pinMarker=L.marker(e.latlng).addTo(pinMap);
+      placePinMarker(e.latlng.lat,e.latlng.lng);
     });
-    if(parseFloat($('tlf-new-lat').value)){
-      pinMarker=L.marker([startLat,startLng]).addTo(pinMap);
-    }
   }
+  syncPinMapFromFields();
   setTimeout(()=>pinMap.invalidateSize(),100);
+}
+function placePinMarker(lat,lng){
+  if(pinMarker)pinMap.removeLayer(pinMarker);
+  pinMarker=L.marker([lat,lng]).addTo(pinMap);
+}
+function syncPinMapFromFields(){
+  if(!pinMap)return;
+  const lat=parseFloat($('tlf-new-lat').value), lng=parseFloat($('tlf-new-lng').value);
+  if(isNaN(lat)||isNaN(lng))return;
+  pinMap.setView([lat,lng],13);
+  placePinMarker(lat,lng);
+}
+function onManualLatLngInput(){
+  const lat=parseFloat($('tlf-new-lat').value), lng=parseFloat($('tlf-new-lng').value);
+  if(isNaN(lat)||isNaN(lng))return;
+  openPinPicker();
 }
 
 // ──────────────────────────────────────────────
@@ -1267,6 +1279,8 @@ function resetTheatreLogForm(){
   $('tlf-price').value='';$('tlf-seat').value='';$('tlf-notes').value='';
   $('tlf-new-theatre-block').style.display='none';$('tlf-theatre-dropdown').style.display='none';
   $('geo-results').innerHTML='';$('geo-status').textContent='';
+  if(pinMap&&pinMarker){pinMap.removeLayer(pinMarker);pinMarker=null;}
+  $('pin-map').classList.remove('open');
   selectedFormats=[];logFormState={theatreId:null,isNewTheatre:false};
   renderFormatChips();
 }
@@ -1294,6 +1308,8 @@ function resetEditTheatreForm(){
   $('et-price').value='';$('et-seat').value='';$('et-notes').value='';
   $('et-new-theatre-block').style.display='none';$('et-theatre-dropdown').style.display='none';
   $('et-geo-results').innerHTML='';$('et-geo-status').textContent='';
+  if(etPinMap&&etPinMarker){etPinMap.removeLayer(etPinMarker);etPinMarker=null;}
+  $('et-pin-map').classList.remove('open');
   etSelectedFormats=[];etFormState={theatreId:null,isNewTheatre:false};
   renderEditFormatChips();
 }
@@ -1351,23 +1367,37 @@ function pickEditGeocodeResult(i){
   $('et-new-lng').value=parseFloat(r.lon).toFixed(6);
   $('et-geo-results').innerHTML=`<div style="font-size:11px;color:var(--accent);">✓ Location set — you can fine-tune with "Drop Pin Manually" if needed.</div>`;
   if(!$('et-new-address').value)$('et-new-address').value=r.display_name.split(',').slice(0,3).join(',');
+  openEditPinPicker();
 }
 function openEditPinPicker(){
-  const el=$('et-pin-map');
-  el.classList.add('open');
+  $('et-pin-map').classList.add('open');
   if(!etPinMap){
-    const startLat=parseFloat($('et-new-lat').value)||20.5937, startLng=parseFloat($('et-new-lng').value)||78.9629;
-    etPinMap=L.map('et-pin-map').setView([startLat,startLng],parseFloat($('et-new-lat').value)?13:5);
+    etPinMap=L.map('et-pin-map').setView([20.5937,78.9629],5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(etPinMap);
     etPinMap.on('click',e=>{
       $('et-new-lat').value=e.latlng.lat.toFixed(6);
       $('et-new-lng').value=e.latlng.lng.toFixed(6);
-      if(etPinMarker)etPinMap.removeLayer(etPinMarker);
-      etPinMarker=L.marker(e.latlng).addTo(etPinMap);
+      placeEditPinMarker(e.latlng.lat,e.latlng.lng);
     });
-    if(parseFloat($('et-new-lat').value)){etPinMarker=L.marker([startLat,startLng]).addTo(etPinMap);}
   }
+  syncEditPinMapFromFields();
   setTimeout(()=>etPinMap.invalidateSize(),100);
+}
+function placeEditPinMarker(lat,lng){
+  if(etPinMarker)etPinMap.removeLayer(etPinMarker);
+  etPinMarker=L.marker([lat,lng]).addTo(etPinMap);
+}
+function syncEditPinMapFromFields(){
+  if(!etPinMap)return;
+  const lat=parseFloat($('et-new-lat').value), lng=parseFloat($('et-new-lng').value);
+  if(isNaN(lat)||isNaN(lng))return;
+  etPinMap.setView([lat,lng],13);
+  placeEditPinMarker(lat,lng);
+}
+function onManualEditLatLngInput(){
+  const lat=parseFloat($('et-new-lat').value), lng=parseFloat($('et-new-lng').value);
+  if(isNaN(lat)||isNaN(lng))return;
+  openEditPinPicker();
 }
 function renderEditFormatChips(){
   const row=$('et-format-chip-row');if(!row)return;
