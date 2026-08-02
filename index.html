@@ -375,7 +375,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v9.5</span>
+    <span class="header-tag">Cinema Intelligence v9.6</span>
   </div>
 </header>
 
@@ -569,7 +569,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         </div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Country of Production</div><div class="chart-container"><canvas id="chart-country"></canvas></div></div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent3)"></span>Films by Decade <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(bars = count, line = avg rating)</span></div><div class="chart-container"><canvas id="chart-decade"></canvas></div></div>
-        <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Tag Analysis <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(x = times used, y = avg rating, size = frequency)</span></div><div class="chart-container"><canvas id="chart-tags"></canvas></div></div>
+        <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Tag Analysis <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(top 10 by frequency)</span></div><div class="chart-container"><canvas id="chart-tags"></canvas></div></div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent)"></span>Genre Preference Over Time <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">(Top 3)</span></div><div class="chart-container"><canvas id="chart-genre-time"></canvas></div></div>
         <div class="chart-card wide"><div class="chart-title"><span class="chart-dot" style="background:var(--accent2)"></span>Watch Pattern</div><div class="heatmap-wrap" id="heatmap-container"></div></div>
       </div>
@@ -1521,22 +1521,25 @@ function buildDirectorLoyaltyChart(data){
   const entries=Object.entries(map).filter(([,v])=>v.count>=2)
     .map(([name,v])=>({name,count:v.count,avg:v.ratings.length?v.ratings.reduce((s,r)=>s+r,0)/v.ratings.length:null}))
     .filter(e=>e.avg!=null)
-    .sort((a,b)=>b.count-a.count).slice(0,15);
+    .sort((a,b)=>b.count-a.count).slice(0,6);
   if(charts.directorLoyalty)charts.directorLoyalty.destroy();
   if(!entries.length)return;
-  const maxCount=Math.max(...entries.map(e=>e.count));
   charts.directorLoyalty=new Chart($('chart-director-loyalty'),{
-    type:'bubble',
-    data:{datasets:[{
-      data:entries.map(e=>({x:e.count,y:e.avg,r:6+(e.count/maxCount)*16,label:e.name})),
-      backgroundColor:'rgba(46,184,114,.5)',borderColor:'rgba(46,184,114,.9)',borderWidth:1.5
-    }]},
+    type:'bar',
+    data:{
+      labels:entries.map(e=>e.name),
+      datasets:[
+        {label:'Films Watched',data:entries.map(e=>e.count),backgroundColor:'rgba(46,184,114,.75)',borderRadius:3,borderSkipped:false},
+        {label:'Avg Rating',data:entries.map(e=>e.avg),backgroundColor:'rgba(0,113,227,.75)',borderRadius:3,borderSkipped:false}
+      ]
+    },
     options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.label} — ${c.raw.x} films, avg ${c.raw.y.toFixed(1)}`},backgroundColor:'#ffffff',borderColor:'#d2d2d7',borderWidth:1,titleColor:'#1d1d1f',bodyColor:'#6e6e73'}},
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'bottom',labels:{color:'#6e6e73',font:{size:10},boxWidth:10,padding:14}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#d2d2d7',borderWidth:1,titleColor:'#1d1d1f',bodyColor:'#6e6e73'}},
       scales:{
-        x:{...scaleStyle(),title:{display:true,text:'Films Watched',color:'#6e6e73',font:{size:10}},ticks:{...scaleStyle().ticks,stepSize:1}},
-        y:{...scaleStyle(),min:0,max:10,title:{display:true,text:'Avg Rating',color:'#6e6e73',font:{size:10}}}
+        x:{...scaleStyle(),ticks:{...scaleStyle().ticks,stepSize:1}},
+        y:{...scaleStyle(),grid:{display:false}}
       }
     }
   });
@@ -1550,22 +1553,25 @@ function buildTagsChart(data){
   }));
   const entries=Object.entries(map)
     .map(([tag,v])=>({tag,count:v.count,avg:v.ratings.length?v.ratings.reduce((s,r)=>s+r,0)/v.ratings.length:null}))
-    .sort((a,b)=>b.count-a.count).slice(0,20);
+    .sort((a,b)=>b.count-a.count).slice(0,10);
   if(charts.tags)charts.tags.destroy();
   if(!entries.length)return;
-  const maxCount=Math.max(...entries.map(e=>e.count));
   charts.tags=new Chart($('chart-tags'),{
-    type:'bubble',
-    data:{datasets:[{
-      data:entries.map(e=>({x:e.count,y:e.avg!=null?e.avg:0,r:6+(e.count/maxCount)*16,label:e.tag})),
-      backgroundColor:'rgba(0,113,227,.5)',borderColor:'rgba(0,113,227,.9)',borderWidth:1.5
-    }]},
+    type:'bar',
+    data:{
+      labels:entries.map(e=>e.tag),
+      datasets:[
+        {label:'Times Used',data:entries.map(e=>e.count),backgroundColor:'rgba(0,113,227,.75)',borderRadius:3,borderSkipped:false},
+        {label:'Avg Rating',data:entries.map(e=>e.avg!=null?e.avg:0),backgroundColor:'rgba(255,149,0,.75)',borderRadius:3,borderSkipped:false}
+      ]
+    },
     options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.label} — used ${c.raw.x}×, avg ${c.raw.y.toFixed(1)}`},backgroundColor:'#ffffff',borderColor:'#d2d2d7',borderWidth:1,titleColor:'#1d1d1f',bodyColor:'#6e6e73'}},
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'bottom',labels:{color:'#6e6e73',font:{size:10},boxWidth:10,padding:14}},
+        tooltip:{backgroundColor:'#ffffff',borderColor:'#d2d2d7',borderWidth:1,titleColor:'#1d1d1f',bodyColor:'#6e6e73'}},
       scales:{
-        x:{...scaleStyle(),title:{display:true,text:'Times Used',color:'#6e6e73',font:{size:10}},ticks:{...scaleStyle().ticks,stepSize:1}},
-        y:{...scaleStyle(),min:0,max:10,title:{display:true,text:'Avg Rating',color:'#6e6e73',font:{size:10}}}
+        x:{...scaleStyle(),ticks:{...scaleStyle().ticks,stepSize:1}},
+        y:{...scaleStyle(),grid:{display:false}}
       }
     }
   });
