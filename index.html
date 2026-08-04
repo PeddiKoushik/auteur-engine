@@ -382,7 +382,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v10.0</span>
+    <span class="header-tag">Cinema Intelligence v10.1</span>
   </div>
 </header>
 
@@ -470,6 +470,10 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
             <div class="tlf-row">
               <div class="tlf-field"><label for="tlf-price">Ticket Price (₹)</label><input type="number" id="tlf-price" placeholder="450"/></div>
               <div class="tlf-field"><label for="tlf-seat">Seat Number</label><input type="text" id="tlf-seat" placeholder="F9"/></div>
+            </div>
+            <div class="tlf-field">
+              <label for="tlf-food">Food &amp; Snacks (₹) <span style="opacity:.5">(optional)</span></label>
+              <input type="number" id="tlf-food" placeholder="250"/>
             </div>
 
             <div class="tlf-field">
@@ -598,6 +602,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
       <div class="search-bar">
         <input class="search-input" type="text" id="search-input" placeholder="Search by title, director, genre, country…" oninput="applyFilters()"/>
         <select class="filter-select" id="filter-genre" onchange="applyFilters()"><option value="">All Genres</option></select>
+        <select class="filter-select" id="filter-tag" onchange="applyFilters()"><option value="">All Tags</option></select>
         <select class="filter-select" id="filter-source" onchange="applyFilters()">
           <option value="">All Sources</option><option value="manual">Manual</option><option value="csv">CSV</option>
         </select>
@@ -668,6 +673,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         <div class="grid-tile"><div class="grid-tile-label">Biggest Spending Month</div><div class="grid-tile-sub" id="ts-biggest-month" style="font-size:13px;color:var(--text);margin-top:4px;">—</div></div>
         <div class="grid-tile"><div class="grid-tile-label">City Distribution</div><div class="grid-tile-sub" id="ts-city-dist" style="font-size:13px;color:var(--text);margin-top:4px;">—</div></div>
         <div class="grid-tile"><div class="grid-tile-label">Theatre Loyalty</div><div class="grid-tile-sub" id="ts-loyalty" style="font-size:13px;color:var(--text);margin-top:4px;">—</div></div>
+        <div class="grid-tile"><div class="grid-tile-label">Food &amp; Snacks</div><div class="grid-tile-sub" id="ts-food" style="font-size:13px;color:var(--text);margin-top:4px;">—</div></div>
       </div>
       <div class="stats-charts-grid">
         <div class="stats-chart-card"><div class="stats-chart-title">Screenings Over Time</div><div class="stats-chart-container"><canvas id="tchart-over-time"></canvas></div></div>
@@ -781,6 +787,10 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
             <div class="tlf-field"><label for="et-price">Ticket Price (₹)</label><input type="number" id="et-price" placeholder="450"/></div>
             <div class="tlf-field"><label for="et-seat">Seat Number</label><input type="text" id="et-seat" placeholder="F9"/></div>
           </div>
+          <div class="tlf-field">
+            <label for="et-food">Food &amp; Snacks (₹) <span style="opacity:.5">(optional)</span></label>
+            <input type="number" id="et-food" placeholder="250"/>
+          </div>
 
           <div class="tlf-field">
             <label for="et-notes">Notes <span style="opacity:.5">(optional)</span></label>
@@ -812,6 +822,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         <div class="modal-field"><label for="sc-edit-language">Language</label><input type="text" id="sc-edit-language"/></div>
         <div class="modal-field"><label for="sc-edit-price">Ticket Price (₹)</label><input type="number" id="sc-edit-price"/></div>
         <div class="modal-field"><label for="sc-edit-seat">Seat Number</label><input type="text" id="sc-edit-seat"/></div>
+        <div class="modal-field"><label for="sc-edit-food">Food &amp; Snacks (₹)</label><input type="number" id="sc-edit-food"/></div>
         <div class="modal-field full">
           <label>Format</label>
           <div class="chip-row" id="sc-edit-format-chips"></div>
@@ -871,6 +882,7 @@ let currentMainTab='analytics';
 let currentTheatreView='map';
 let leafletMap=null, markersLayer=null;
 let selectedTheatreId=null, expandedScreeningId=null, editingScreeningId=null;
+let pendingWatchlistLink=null; // {id, addedOn} — set only while a watchlist item is mid-transfer to the log form
 let selectedFormats=[];    // for the log form chip picker
 let logFormState={theatreId:null,isNewTheatre:false};
 let pinMap=null, pinMarker=null;
@@ -1068,9 +1080,11 @@ function switchTab(tab){
   $('import-pane').style.display=tab==='import'?'block':'none';
 }
 function showEntryPanel(){
+  pendingWatchlistLink=null;
   hide('dashboard-section');$('upload-section').style.display='flex';switchTab('log');
 }
 function backToDashboard(){
+  pendingWatchlistLink=null;
   hide('upload-section');hide('progress-section');
   $('dashboard-section').style.display='block';
 }
@@ -1103,12 +1117,19 @@ function populateFilterDropdowns(){
   sel.innerHTML='<option value="">All Genres</option>';
   [...genres].sort().forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;sel.appendChild(o);});
   sel.value=prev;
+
+  const tags=new Set(enrichedData.flatMap(m=>m.tags||[]));
+  const tagSel=$('filter-tag');const prevTag=tagSel.value;
+  tagSel.innerHTML='<option value="">All Tags</option>';
+  [...tags].sort().forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;tagSel.appendChild(o);});
+  tagSel.value=prevTag;
 }
 function isTheatreMovie(movieId){return screeningsData.some(s=>s.movieDocId===movieId);}
 
 function applyFilters(){
   const q=($('search-input').value||'').toLowerCase().trim();
   const genre=$('filter-genre').value;
+  const tag=$('filter-tag')?$('filter-tag').value:'';
   const source=$('filter-source').value;
   const rating=$('filter-rating').value;
   const theatreFilter=$('filter-theatre')?$('filter-theatre').value:'';
@@ -1119,6 +1140,7 @@ function applyFilters(){
       if(!hay.includes(q))return false;
     }
     if(genre&&!(m.genres||[]).includes(genre))return false;
+    if(tag&&!(m.tags||[]).includes(tag))return false;
     if(source&&m.source!==source)return false;
     if(rating==='high'&&!(m.user_rating>=7))return false;
     if(rating==='mid'&&!(m.user_rating>=4&&m.user_rating<7))return false;
@@ -1130,11 +1152,12 @@ function applyFilters(){
   });
 
   const c=$('search-count');
-  if(c)c.textContent=(q||genre||source||rating||theatreFilter)?`${filteredData.length} of ${enrichedData.length} films`:'';
+  if(c)c.textContent=(q||genre||tag||source||rating||theatreFilter)?`${filteredData.length} of ${enrichedData.length} films`:'';
   buildTable(filteredData);
 }
 function clearFilters(){
   $('search-input').value='';$('filter-genre').value='';$('filter-source').value='';$('filter-rating').value='';
+  if($('filter-tag'))$('filter-tag').value='';
   if($('filter-theatre'))$('filter-theatre').value='';
   applyFilters();
 }
@@ -1281,7 +1304,7 @@ function resetTheatreLogForm(){
   $('theatre-log-fields').classList.remove('open');
   $('tlf-theatre-query').value='';$('tlf-new-city').value='';$('tlf-new-address').value='';
   $('tlf-new-lat').value='';$('tlf-new-lng').value='';$('tlf-screen').value='';$('tlf-language').value='';
-  $('tlf-price').value='';$('tlf-seat').value='';$('tlf-notes').value='';
+  $('tlf-price').value='';$('tlf-seat').value='';$('tlf-food').value='';$('tlf-notes').value='';
   $('tlf-new-theatre-block').style.display='none';$('tlf-theatre-dropdown').style.display='none';
   $('geo-results').innerHTML='';$('geo-status').textContent='';
   if(pinMap&&pinMarker){pinMap.removeLayer(pinMarker);pinMarker=null;}
@@ -1310,7 +1333,7 @@ function resetEditTheatreForm(){
   $('et-fields').style.display='none';
   $('et-theatre-query').value='';$('et-new-city').value='';$('et-new-address').value='';
   $('et-new-lat').value='';$('et-new-lng').value='';$('et-screen').value='';$('et-language').value='';
-  $('et-price').value='';$('et-seat').value='';$('et-notes').value='';
+  $('et-price').value='';$('et-seat').value='';$('et-food').value='';$('et-notes').value='';
   $('et-new-theatre-block').style.display='none';$('et-theatre-dropdown').style.display='none';
   $('et-geo-results').innerHTML='';$('et-geo-status').textContent='';
   if(etPinMap&&etPinMarker){etPinMap.removeLayer(etPinMarker);etPinMarker=null;}
@@ -1451,6 +1474,7 @@ async function saveTheatreVisitFromEdit(){
       format: etSelectedFormats[0]||'Regular', formats: etSelectedFormats.length?etSelectedFormats:['Regular'],
       language:$('et-language').value.trim()||null,
       ticketPrice: $('et-price').value!==''?parseFloat($('et-price').value):null,
+      foodSpend: $('et-food').value!==''?parseFloat($('et-food').value):null,
       seatNumber: $('et-seat').value.trim()||null,
       userRating: $('edit-rating').value!==''?parseFloat($('edit-rating').value):null,
       notes: $('et-notes').value.trim()||null,
@@ -1516,6 +1540,7 @@ async function submitLogEntry(){
   try{
     const movie=await enrichMovieDoc(title,watch_date,watch_time,user_rating,'manual',apiKey);
     if(logTags.length)movie.tags=[...logTags];
+    if(pendingWatchlistLink)movie.watchlistAddedOn=pendingWatchlistLink.addedOn;
     let movieRef=null;
     if(firebaseReady&&moviesCol){
       movieRef=await saveToFirestore(movie);
@@ -1546,6 +1571,7 @@ async function submitLogEntry(){
           format: selectedFormats[0]||'Regular', formats: selectedFormats.length?selectedFormats:['Regular'],
           language:$('tlf-language').value.trim()||null,
           ticketPrice: $('tlf-price').value!==''?parseFloat($('tlf-price').value):null,
+          foodSpend: $('tlf-food').value!==''?parseFloat($('tlf-food').value):null,
           seatNumber: $('tlf-seat').value.trim()||null,
           userRating: user_rating, notes: $('tlf-notes').value.trim()||null,
           loggedAt: new Date().toISOString(),
@@ -1555,6 +1581,7 @@ async function submitLogEntry(){
     }
 
     showSuccess(isTheatre?`"${title}" logged with theatre visit ✓`:`"${title}" logged and enriched ✓`);
+    if(pendingWatchlistLink){removeFromWatchlist(pendingWatchlistLink.id);pendingWatchlistLink=null;}
     ['log-title','log-date','log-time','log-rating'].forEach(id=>$(id).value='');
     resetTheatreLogForm();
     resetLogTags();
@@ -1700,6 +1727,18 @@ function calcComfortZone(data){const freq={};data.forEach(m=>(m.genres||[]).forE
 function calcBestCinemaYear(data){const yrRatings={};data.forEach(m=>{if(!m.release_year||m.user_rating==null)return;if(!yrRatings[m.release_year])yrRatings[m.release_year]=[];yrRatings[m.release_year].push(m.user_rating);});const yrAvgs=Object.entries(yrRatings).filter(([,a])=>a.length>=2).map(([y,a])=>[y,parseFloat((a.reduce((s,v)=>s+v,0)/a.length).toFixed(1))]);if(!yrAvgs.length)return null;yrAvgs.sort((a,b)=>b[1]-a[1]);return{year:yrAvgs[0][0],avg:yrAvgs[0][1],count:yrRatings[yrAvgs[0][0]].length};}
 function calcWatchPace(data){const months={};data.forEach(m=>{if(!m.watch_date||m.watch_date==='—')return;const k=m.watch_date.slice(0,7);months[k]=(months[k]||0)+1;});const vals=Object.values(months);if(!vals.length)return null;return parseFloat((vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1));}
 function calcDirectorLoyalty(data){const freq={};data.forEach(m=>{if(m.director)freq[m.director]=(freq[m.director]||0)+1;});const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]);if(!sorted.length)return null;return{name:sorted[0][0],count:sorted[0][1],pct:Math.round(sorted[0][1]/data.length*100)};}
+function calcWatchlistGap(data){
+  const withGap=data.filter(m=>m.watchlistAddedOn&&m.watch_date);
+  if(!withGap.length)return null;
+  const gaps=withGap.map(m=>{
+    const d1=new Date(m.watchlistAddedOn+'T00:00:00'), d2=new Date(m.watch_date+'T00:00:00');
+    return {days:Math.max(0,Math.round((d2-d1)/86400000)),title:m.title};
+  });
+  const avg=Math.round(gaps.reduce((s,g)=>s+g.days,0)/gaps.length);
+  const longest=gaps.reduce((a,b)=>b.days>a.days?b:a,gaps[0]);
+  const fastest=gaps.reduce((a,b)=>b.days<a.days?b:a,gaps[0]);
+  return{avg,count:gaps.length,longest,fastest};
+}
 function calcMostRewatched(data){const freq={};data.forEach(m=>{if(!m.title)return;const k=m.title.trim().toLowerCase();if(!freq[k])freq[k]={title:m.title,count:0};freq[k].count++;});const sorted=Object.values(freq).sort((a,b)=>b.count-a.count);if(!sorted.length||sorted[0].count<2)return null;return sorted[0];}
 function calcFavouriteDecade(data){const freq={};data.forEach(m=>{if(!m.release_year)return;const y=parseInt(m.release_year);if(isNaN(y))return;const dec=Math.floor(y/10)*10;freq[dec]=(freq[dec]||0)+1;});const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]);if(!sorted.length)return null;return{decade:sorted[0][0],count:sorted[0][1],pct:Math.round(sorted[0][1]/data.length*100)};}
 function calcDecadeStats(data){const map={};data.forEach(m=>{if(!m.release_year)return;const y=parseInt(m.release_year);if(isNaN(y))return;const dec=Math.floor(y/10)*10+'s';if(!map[dec])map[dec]={count:0,ratings:[]};map[dec].count++;if(m.user_rating!=null)map[dec].ratings.push(m.user_rating);});return Object.entries(map).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([dec,v])=>({decade:dec,count:v.count,avgRating:v.ratings.length?parseFloat((v.ratings.reduce((s,r)=>s+r,0)/v.ratings.length).toFixed(1)):null}));}
@@ -1734,6 +1773,8 @@ function buildInsights(data){
   if(mr)grid.insertAdjacentHTML('beforeend',insightHTML({name:'Most Rewatched',value:mr.count+'x',badge:mr.count>=4?'Obsession':mr.count>=3?'Favourite':'Rewatched',badgeBg:'rgba(255,149,0,.08)',badgeColor:'var(--accent2)',desc:`You've logged <strong>${mr.title}</strong> ${mr.count} times.`,color:'var(--accent2)'}));
   const fd=calcFavouriteDecade(valid);
   if(fd)grid.insertAdjacentHTML('beforeend',insightHTML({name:'Favourite Decade',value:fd.decade+'s',badge:`${fd.pct}% of films`,badgeBg:'rgba(46,184,114,.08)',badgeColor:'var(--accent3)',desc:`The <strong>${fd.decade}s</strong> is your most-watched decade with <strong>${fd.count} films</strong>.`,color:'var(--accent3)'}));
+  const wg=calcWatchlistGap(valid);
+  if(wg)grid.insertAdjacentHTML('beforeend',insightHTML({name:'Watchlist Patience',value:wg.avg+(wg.avg===1?' day':' days'),badge:`${wg.count} tracked`,badgeBg:'rgba(0,113,227,.08)',badgeColor:'var(--accent)',desc:`On average you wait <strong>${wg.avg} days</strong> after adding a film before watching it. Longest: <strong>${wg.longest.days}d</strong> for <strong>${wg.longest.title}</strong> · Fastest: <strong>${wg.fastest.days}d</strong> for <strong>${wg.fastest.title}</strong>.`,color:'var(--accent)'}));
 }
 function insightHTML({name,value,badge,badgeBg,badgeColor,desc,color}){return `<div class="insight-card" style="--insight-color:${color}"><div class="insight-header"><span class="insight-name">${name}</span><span class="insight-badge" style="background:${badgeBg};color:${badgeColor}">${badge}</span></div><div class="insight-value">${value}</div><div class="insight-desc">${desc}</div></div>`;}
 
@@ -2069,6 +2110,7 @@ function renderDrawer(theatreId){
           <div class="dsd-row"><span class="dsd-label">FORMAT</span><span>${(sc.formats||[sc.format]).join(', ')}</span></div>
           <div class="dsd-row"><span class="dsd-label">LANGUAGE</span><span>${sc.language||'—'}</span></div>
           <div class="dsd-row"><span class="dsd-label">TICKET</span><span>${sc.ticketPrice?money(sc.ticketPrice):'—'}</span></div>
+          <div class="dsd-row"><span class="dsd-label">FOOD</span><span>${sc.foodSpend?money(sc.foodSpend):'—'}</span></div>
           <div class="dsd-row"><span class="dsd-label">SEAT</span><span>${sc.seatNumber||'—'}</span></div>`;
         if(sc.userRating!=null){
           html+=`<div><div class="dsd-row"><span class="dsd-label">YOUR RATING</span><span>${sc.userRating} / 10</span></div><div class="dsd-rating-bar"><div class="dsd-rating-fill" style="width:${sc.userRating*10}%"></div></div></div>`;
@@ -2140,6 +2182,9 @@ function buildTheatreStats(){
   $('ts-biggest-month').textContent=biggestMonthEntry?`${monthLabel(biggestMonthEntry[0])} — ${money(biggestMonthEntry[1])} across ${monthCountMap[biggestMonthEntry[0]]} screenings`:'—';
   $('ts-city-dist').textContent=cityDistText||'—';
   $('ts-loyalty').textContent=screeningsData.length?`${loyaltyPct}% of visits are to your top 3 theatres — ${loyaltyPct>=50?'Regular patron':'Explorer'}`:'—';
+  const foodEntries=screeningsData.filter(s=>s.foodSpend!=null&&s.foodSpend>0);
+  const foodTotal=foodEntries.reduce((a,s)=>a+s.foodSpend,0);
+  $('ts-food').textContent=foodEntries.length?`${money(foodTotal)} total · ${money(Math.round(foodTotal/foodEntries.length))} avg over ${foodEntries.length} visit${foodEntries.length!==1?'s':''}`:'No food spend logged yet';
 
   buildTheatreCharts(counts,cityMap,fmtGlobal,theatreNameOf);
 }
@@ -2188,6 +2233,7 @@ function openScreeningModal(id){
   $('sc-edit-language').value=sc.language||'';
   $('sc-edit-price').value=sc.ticketPrice!=null?sc.ticketPrice:'';
   $('sc-edit-seat').value=sc.seatNumber||'';
+  $('sc-edit-food').value=sc.foodSpend!=null?sc.foodSpend:'';
   $('sc-edit-notes').value=sc.notes||'';
   renderScreeningEditChips();
   $('screening-modal').classList.add('open');document.body.style.overflow='hidden';
@@ -2210,6 +2256,7 @@ async function saveScreeningModal(){
     language:$('sc-edit-language').value.trim()||null,
     ticketPrice:$('sc-edit-price').value!==''?parseFloat($('sc-edit-price').value):null,
     seatNumber:$('sc-edit-seat').value.trim()||null,
+    foodSpend:$('sc-edit-food').value!==''?parseFloat($('sc-edit-food').value):null,
     notes:$('sc-edit-notes').value.trim()||null,
     formats: editScreeningFormats.length?editScreeningFormats:['Regular'],
     format: editScreeningFormats[0]||'Regular',
@@ -2253,13 +2300,13 @@ function removeFromWatchlist(id){
 function moveWatchlistToLog(id){
   const list=loadWatchlistData();
   const item=list.find(w=>w.id===id);if(!item)return;
-  removeFromWatchlist(id);
   switchMainTab('analytics');
-  showEntryPanel();switchTab('log');
+  showEntryPanel();switchTab('log'); // clears any stale pendingWatchlistLink first
+  pendingWatchlistLink={id:item.id,addedOn:item.addedOn};
   $('log-title').value=item.title;
   $('log-date').value=new Date().toISOString().slice(0,10);
   setTimeout(()=>$('log-rating').focus(),100);
-  showSuccess(`"${item.title}" moved to log — fill in your rating and hit Log Movie.`);
+  showSuccess(`"${item.title}" moved to log — fill in your rating and hit Log Movie. It'll leave your watchlist once saved.`);
 }
 function renderWatchlist(){
   const list=loadWatchlistData();
