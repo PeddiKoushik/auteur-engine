@@ -382,7 +382,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v10.1</span>
+    <span class="header-tag">Cinema Intelligence v10.2</span>
   </div>
 </header>
 
@@ -781,6 +781,10 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
           <div>
             <label style="font-size:9px;letter-spacing:0.4px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px;">Format</label>
             <div class="chip-row" id="et-format-chip-row"></div>
+            <div class="chip-add-row">
+              <input type="text" id="et-custom-format-input" placeholder="Add custom format (e.g. ScreenX)"/>
+              <button type="button" class="chip-add-btn" onclick="addEditCustomFormat()">+ Add</button>
+            </div>
           </div>
 
           <div class="tlf-row">
@@ -826,6 +830,10 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         <div class="modal-field full">
           <label>Format</label>
           <div class="chip-row" id="sc-edit-format-chips"></div>
+          <div class="chip-add-row" style="margin-top:8px;">
+            <input type="text" id="sc-edit-custom-format-input" placeholder="Add custom format (e.g. ScreenX)"/>
+            <button type="button" class="chip-add-btn" onclick="addScreeningEditCustomFormat()">+ Add</button>
+          </div>
         </div>
         <div class="modal-field full"><label for="sc-edit-notes">Notes</label><textarea id="sc-edit-notes"></textarea></div>
       </div>
@@ -1334,6 +1342,7 @@ function resetEditTheatreForm(){
   $('et-theatre-query').value='';$('et-new-city').value='';$('et-new-address').value='';
   $('et-new-lat').value='';$('et-new-lng').value='';$('et-screen').value='';$('et-language').value='';
   $('et-price').value='';$('et-seat').value='';$('et-food').value='';$('et-notes').value='';
+  $('et-custom-format-input').value='';
   $('et-new-theatre-block').style.display='none';$('et-theatre-dropdown').style.display='none';
   $('et-geo-results').innerHTML='';$('et-geo-status').textContent='';
   if(etPinMap&&etPinMarker){etPinMap.removeLayer(etPinMarker);etPinMarker=null;}
@@ -1436,6 +1445,14 @@ function renderEditFormatChips(){
 function toggleEditFormatChip(f){
   if(etSelectedFormats.includes(f))etSelectedFormats=etSelectedFormats.filter(x=>x!==f);
   else etSelectedFormats=[...etSelectedFormats,f];
+  renderEditFormatChips();
+}
+function addEditCustomFormat(){
+  const val=$('et-custom-format-input').value.trim();
+  if(!val)return;
+  if(!formatOptions.includes(val)){formatOptions=[...formatOptions,val];persistNewFormat(val);}
+  if(!etSelectedFormats.includes(val))etSelectedFormats=[...etSelectedFormats,val];
+  $('et-custom-format-input').value='';
   renderEditFormatChips();
 }
 document.addEventListener('click',e=>{
@@ -2248,7 +2265,15 @@ function toggleScreeningEditChip(f){
   else editScreeningFormats=[...editScreeningFormats,f];
   renderScreeningEditChips();
 }
-function closeScreeningModal(){$('screening-modal').classList.remove('open');document.body.style.overflow='';editingScreeningId=null;}
+function addScreeningEditCustomFormat(){
+  const val=$('sc-edit-custom-format-input').value.trim();
+  if(!val)return;
+  if(!formatOptions.includes(val)){formatOptions=[...formatOptions,val];persistNewFormat(val);}
+  if(!editScreeningFormats.includes(val))editScreeningFormats=[...editScreeningFormats,val];
+  $('sc-edit-custom-format-input').value='';
+  renderScreeningEditChips();
+}
+function closeScreeningModal(){$('screening-modal').classList.remove('open');document.body.style.overflow='';editingScreeningId=null;$('sc-edit-custom-format-input').value='';}
 async function saveScreeningModal(){
   if(!editingScreeningId)return;
   const updates={
