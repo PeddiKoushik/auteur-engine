@@ -353,6 +353,21 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
 .dsd-notes{font-size:11.5px;font-style:italic;color:var(--muted);}
 .dsd-actions{display:flex;gap:8px;margin-top:4px;}
 
+/* ── WATCH STREAK CALENDAR ── */
+.streak-cal-header{display:flex;align-items:center;justify-content:space-between;margin:18px 0 14px;}
+.streak-cal-scroll{overflow-x:auto;padding-bottom:4px;}
+.streak-cal-month-labels{display:grid;grid-auto-flow:column;grid-auto-columns:11px;gap:3px;font-size:9px;color:var(--muted);margin-bottom:4px;margin-left:26px;min-width:max-content;}
+.streak-cal-grid{display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;grid-auto-columns:11px;gap:3px;min-width:max-content;}
+.streak-cal-daylabel{font-size:8px;color:var(--muted);grid-column:1;align-self:center;}
+.streak-cal-cell{width:11px;height:11px;border-radius:2px;cursor:pointer;}
+.streak-cal-cell:hover{outline:1.5px solid var(--text);outline-offset:1px;}
+.streak-month-weekday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:9px;letter-spacing:0.4px;text-transform:uppercase;color:var(--muted);text-align:center;margin:18px 0 8px;}
+.streak-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.streak-month-cell{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;cursor:default;color:var(--muted);border:1px solid var(--border);}
+.streak-month-cell.has-data{color:#fff;font-weight:600;border-color:transparent;cursor:pointer;}
+.streak-month-cell.empty-pad{border:none;visibility:hidden;}
+.streak-month-cell .smc-count{font-size:8.5px;font-weight:400;margin-top:1px;opacity:.85;}
+
 /* ── STATS VIEW ── */
 #theatre-stats-view{display:none;}
 .stats-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px;}
@@ -382,7 +397,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v10.2</span>
+    <span class="header-tag">Cinema Intelligence v10.3</span>
   </div>
 </header>
 
@@ -563,6 +578,49 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
         <div class="grid-tile"><div class="grid-tile-label">Avg User Rating</div><div class="grid-tile-value" id="stat-rating" style="color:var(--accent2);">—</div><div class="grid-tile-sub">out of 10</div></div>
         <div class="grid-tile"><div class="grid-tile-label">Avg Runtime</div><div class="grid-tile-value" id="stat-runtime" style="color:var(--accent3);">—</div><div class="grid-tile-sub">minutes per film</div></div>
         <div class="grid-tile"><div class="grid-tile-label">Theatre Visits</div><div class="grid-tile-value" id="stat-theatre-visits">—</div><div class="grid-tile-sub">of total films watched</div></div>
+      </div>
+
+      <div class="section-label">Watch Streak</div>
+      <div class="charts-grid">
+        <div class="chart-card wide" style="grid-column:span 2;">
+          <div class="chart-actions">
+            <div class="chart-title" style="margin-bottom:0"><span class="chart-dot" style="background:var(--accent)"></span>Watch Streak</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="grid-tiles cols-2" style="margin:0;gap:1px;">
+                <div class="grid-tile" style="padding:6px 14px;"><div class="grid-tile-label" style="margin-bottom:2px;">Current Streak</div><div class="grid-tile-value" id="streak-current" style="font-size:18px;">—</div></div>
+                <div class="grid-tile" style="padding:6px 14px;"><div class="grid-tile-label" style="margin-bottom:2px;">Longest Streak</div><div class="grid-tile-value" id="streak-longest" style="font-size:18px;color:var(--accent2);">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="streak-year-view">
+            <div class="streak-cal-header">
+              <button class="zoom-reset-btn" onclick="navCalendarYear(-1)">‹ Prev</button>
+              <span id="streak-year-label" style="font-family:var(--font-head);font-weight:700;font-size:14px;"></span>
+              <button class="zoom-reset-btn" onclick="navCalendarYear(1)">Next ›</button>
+            </div>
+            <div class="streak-cal-scroll">
+              <div id="streak-month-labels" class="streak-cal-month-labels"></div>
+              <div id="streak-cal-grid" class="streak-cal-grid"></div>
+            </div>
+            <div class="hm-legend"><span>Less</span><div class="hm-legend-swatch" id="streak-legend"></div><span>More</span></div>
+          </div>
+
+          <div id="streak-month-view" style="display:none;">
+            <div class="streak-cal-header">
+              <button class="zoom-reset-btn" onclick="backToYearCalendar()">‹ Back to <span id="streak-month-back-year"></span></button>
+              <span id="streak-month-label" style="font-family:var(--font-head);font-weight:700;font-size:14px;"></span>
+              <span style="display:flex;gap:6px;">
+                <button class="zoom-reset-btn" onclick="navCalendarMonth(-1)">‹</button>
+                <button class="zoom-reset-btn" onclick="navCalendarMonth(1)">›</button>
+              </span>
+            </div>
+            <div class="streak-month-weekday-row">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div id="streak-month-grid" class="streak-month-grid"></div>
+          </div>
+        </div>
       </div>
 
       <div class="section-label">Visualisations</div>
@@ -1698,6 +1756,7 @@ function buildDashboard(){
 
   buildInsights(enrichedData);
   buildTagsTable(valid);
+  buildWatchStreak(valid);
   if(valid.length){
     buildGenreChart(valid);buildScatterChart(valid);buildDirectorLoyaltyChart(valid);
     buildLanguageChart(valid);buildTimelineChart(valid);buildCountryChart(valid);
@@ -1798,6 +1857,134 @@ function insightHTML({name,value,badge,badgeBg,badgeColor,desc,color}){return `<
 // ──────────────────────────────────────────────
 //  HEATMAP
 // ──────────────────────────────────────────────
+// ──────────────────────────────────────────────
+//  WATCH STREAK CALENDAR
+// ──────────────────────────────────────────────
+let calendarView='year', calendarYear=new Date().getFullYear(), calendarMonth=new Date().getMonth();
+let streakDayMap={}; // dateStr -> {count, titles:[]}  (built once per buildDashboard pass, all-time)
+function localDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+function buildDateMap(data){
+  const map={};
+  data.forEach(m=>{
+    if(!m.watch_date||m.watch_date==='—')return;
+    if(!map[m.watch_date])map[m.watch_date]={count:0,titles:[]};
+    map[m.watch_date].count++;
+    map[m.watch_date].titles.push(m.title);
+  });
+  return map;
+}
+function calcStreaks(dayMap){
+  const dates=Object.keys(dayMap).sort();
+  if(!dates.length)return{current:0,longest:0};
+  let longest=1,run=1;
+  for(let i=1;i<dates.length;i++){
+    const diff=Math.round((new Date(dates[i]+'T00:00:00')-new Date(dates[i-1]+'T00:00:00'))/86400000);
+    run=diff===1?run+1:1;
+    if(run>longest)longest=run;
+  }
+  const todayStr=localDateStr(new Date());
+  let cursor=new Date(todayStr+'T00:00:00');
+  if(!dayMap[todayStr])cursor.setDate(cursor.getDate()-1);
+  let current=0;
+  while(dayMap[localDateStr(cursor)]){
+    current++;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return{current,longest};
+}
+function streakColor(count){
+  if(!count)return'var(--surface2)';
+  if(count===1)return'rgba(0,113,227,.3)';
+  if(count===2)return'rgba(0,113,227,.55)';
+  if(count===3)return'rgba(0,113,227,.8)';
+  return'#0071e3';
+}
+function buildWatchStreak(data){
+  streakDayMap=buildDateMap(data);
+  const s=calcStreaks(streakDayMap);
+  $('streak-current').textContent=s.current+(s.current===1?' day':' days');
+  $('streak-longest').textContent=s.longest+(s.longest===1?' day':' days');
+  $('streak-legend').innerHTML=[0,1,2,3,4].map(c=>`<span style="background:${streakColor(c)};border:1px solid rgba(0,0,0,.06)"></span>`).join('');
+  if(calendarView==='year')renderYearCalendar();else renderMonthCalendar();
+}
+function navCalendarYear(delta){calendarYear+=delta;renderYearCalendar();}
+function renderYearCalendar(){
+  calendarView='year';
+  $('streak-year-view').style.display='block';$('streak-month-view').style.display='none';
+  $('streak-year-label').textContent=calendarYear;
+  const jan1=new Date(calendarYear,0,1), dec31=new Date(calendarYear,11,31);
+  const startDow=(jan1.getDay()+6)%7; // 0=Mon
+  const gridStart=new Date(jan1);gridStart.setDate(gridStart.getDate()-startDow);
+  const endDow=(dec31.getDay()+6)%7;
+  const gridEnd=new Date(dec31);gridEnd.setDate(gridEnd.getDate()+(6-endDow));
+  const totalDays=Math.round((gridEnd-gridStart)/86400000)+1; // always a multiple of 7
+  const cells=[];
+  for(let i=0;i<totalDays;i++){
+    const d=new Date(gridStart);d.setDate(d.getDate()+i);
+    const dateStr=localDateStr(d);
+    const inYear=d.getFullYear()===calendarYear;
+    const info=inYear?streakDayMap[dateStr]:null;
+    cells.push({dateStr,count:inYear?(info?info.count:0):null,titles:info?info.titles:[],month:d.getMonth(),inYear});
+  }
+  const grid=$('streak-cal-grid');
+  grid.innerHTML=cells.map(c=>{
+    if(!c.inYear)return `<div class="streak-cal-cell" style="background:transparent;cursor:default;"></div>`;
+    const tip=c.count?`${fmtDateShort(c.dateStr)} — ${c.titles.join(', ')}`:fmtDateShort(c.dateStr);
+    return `<div class="streak-cal-cell" style="background:${streakColor(c.count)}" title="${tip.replace(/"/g,'&quot;')}" onclick="jumpToMonth(${calendarYear},${c.month})"></div>`;
+  }).join('');
+  // month labels: first column where each new month begins, with its own correct month index baked in
+  const monthLabels=[];
+  let lastMonth=-1;
+  cells.forEach((c,i)=>{
+    if(c.inYear&&c.month!==lastMonth){
+      monthLabels.push({col:Math.floor(i/7),month:c.month,name:new Date(calendarYear,c.month,1).toLocaleDateString('en-US',{month:'short'})});
+      lastMonth=c.month;
+    }
+  });
+  const totalCols=totalDays/7;
+  const lbl=$('streak-month-labels');
+  lbl.style.gridTemplateColumns=`repeat(${totalCols},11px)`;
+  let html='';let curCol=0;
+  monthLabels.forEach(m=>{
+    if(m.col>curCol)html+=`<span style="grid-column:span ${m.col-curCol}"></span>`;
+    html+=`<span style="cursor:pointer;color:var(--accent);" onclick="jumpToMonth(${calendarYear},${m.month})">${m.name}</span>`;
+    curCol=m.col+1;
+  });
+  lbl.innerHTML=html;
+}
+function jumpToMonth(year,month){
+  calendarYear=year;calendarMonth=month;
+  renderMonthCalendar();
+}
+function backToYearCalendar(){renderYearCalendar();}
+function navCalendarMonth(delta){
+  calendarMonth+=delta;
+  if(calendarMonth<0){calendarMonth=11;calendarYear--;}
+  if(calendarMonth>11){calendarMonth=0;calendarYear++;}
+  renderMonthCalendar();
+}
+function renderMonthCalendar(){
+  calendarView='month';
+  $('streak-year-view').style.display='none';$('streak-month-view').style.display='block';
+  $('streak-month-back-year').textContent=calendarYear;
+  $('streak-month-label').textContent=new Date(calendarYear,calendarMonth,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const first=new Date(calendarYear,calendarMonth,1);
+  const startDow=(first.getDay()+6)%7;
+  const daysInMonth=new Date(calendarYear,calendarMonth+1,0).getDate();
+  let html='';
+  for(let i=0;i<startDow;i++)html+='<div class="streak-month-cell empty-pad"></div>';
+  for(let day=1;day<=daysInMonth;day++){
+    const dateStr=`${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const info=streakDayMap[dateStr];
+    const count=info?info.count:0;
+    const bg=streakColor(count);
+    const tip=count?`${fmtDateShort(dateStr)} — ${info.titles.join(', ')}`:fmtDateShort(dateStr);
+    html+=`<div class="streak-month-cell ${count?'has-data':''}" style="background:${bg}" title="${tip.replace(/"/g,'&quot;')}">${day}${count?`<span class="smc-count">${count} film${count!==1?'s':''}</span>`:''}</div>`;
+  }
+  $('streak-month-grid').innerHTML=html;
+}
+
 function buildHeatmap(data){const wt=data.filter(m=>m.watch_time&&m.watch_date&&m.watch_date!=='—');const c=$('heatmap-container');if(wt.length>=3)buildRealHeatmap(wt,c);else buildDayBar(data,c);}
 function buildRealHeatmap(data,con){
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
