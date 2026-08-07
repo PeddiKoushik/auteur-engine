@@ -397,7 +397,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v10.3</span>
+    <span class="header-tag">Cinema Intelligence v10.4</span>
   </div>
 </header>
 
@@ -1900,8 +1900,16 @@ function streakColor(count){
   if(count===3)return'rgba(0,113,227,.8)';
   return'#0071e3';
 }
+let calendarYearInitialized=false;
 function buildWatchStreak(data){
   streakDayMap=buildDateMap(data);
+  if(!calendarYearInitialized&&data.length){
+    const yearCounts={};
+    data.forEach(m=>{if(m.watch_date&&m.watch_date!=='—'){const y=m.watch_date.slice(0,4);yearCounts[y]=(yearCounts[y]||0)+1;}});
+    const entries=Object.entries(yearCounts);
+    if(entries.length){calendarYear=parseInt(entries.sort((a,b)=>b[1]-a[1])[0][0]);}
+    calendarYearInitialized=true;
+  }
   const s=calcStreaks(streakDayMap);
   $('streak-current').textContent=s.current+(s.current===1?' day':' days');
   $('streak-longest').textContent=s.longest+(s.longest===1?' day':' days');
@@ -1928,8 +1936,10 @@ function renderYearCalendar(){
     cells.push({dateStr,count:inYear?(info?info.count:0):null,titles:info?info.titles:[],month:d.getMonth(),inYear});
   }
   const grid=$('streak-cal-grid');
+  const todayStr=localDateStr(new Date());
   grid.innerHTML=cells.map(c=>{
     if(!c.inYear)return `<div class="streak-cal-cell" style="background:transparent;cursor:default;"></div>`;
+    if(c.dateStr>todayStr)return `<div class="streak-cal-cell" style="background:transparent;cursor:default;" title="${fmtDateShort(c.dateStr)} — hasn't happened yet"></div>`;
     const tip=c.count?`${fmtDateShort(c.dateStr)} — ${c.titles.join(', ')}`:fmtDateShort(c.dateStr);
     return `<div class="streak-cal-cell" style="background:${streakColor(c.count)}" title="${tip.replace(/"/g,'&quot;')}" onclick="jumpToMonth(${calendarYear},${c.month})"></div>`;
   }).join('');
@@ -1973,9 +1983,14 @@ function renderMonthCalendar(){
   const startDow=(first.getDay()+6)%7;
   const daysInMonth=new Date(calendarYear,calendarMonth+1,0).getDate();
   let html='';
+  const todayStr=localDateStr(new Date());
   for(let i=0;i<startDow;i++)html+='<div class="streak-month-cell empty-pad"></div>';
   for(let day=1;day<=daysInMonth;day++){
     const dateStr=`${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    if(dateStr>todayStr){
+      html+=`<div class="streak-month-cell" style="background:transparent;border-style:dashed;opacity:.4;" title="${fmtDateShort(dateStr)} — hasn't happened yet">${day}</div>`;
+      continue;
+    }
     const info=streakDayMap[dateStr];
     const count=info?info.count:0;
     const bg=streakColor(count);
