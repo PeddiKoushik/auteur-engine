@@ -397,7 +397,8 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
   </div>
   <div class="header-right">
     <span id="key-chip" class="key-chip unset" onclick="promptApiKey()">TMDb Key</span>
-    <span class="header-tag">Cinema Intelligence v10.5</span>
+    <span id="map-key-chip" class="key-chip unset" onclick="promptMapKey()" title="Free CARTO basemap key">Map Key</span>
+    <span class="header-tag">Cinema Intelligence v10.6</span>
   </div>
 </header>
 
@@ -700,6 +701,7 @@ header{box-shadow:0 1px 0 rgba(0,0,0,.05);}
     <div id="theatre-map-view">
       <div id="theatre-map-canvas">
         <div id="leaflet-map"></div>
+        <div id="map-key-notice" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:900;background:var(--surface);border:1px solid var(--border);border-radius:980px;padding:7px 16px;font-size:11px;color:var(--muted);box-shadow:0 2px 10px rgba(0,0,0,.08);cursor:pointer;white-space:nowrap;" onclick="promptMapKey()">Map tiles are watermarked without a free CARTO key — <span style="color:var(--accent)">add key</span></div>
         <button class="fab" onclick="openQuickLogFromTheatres()" title="Log a screening">+</button>
         <div id="theatre-drawer">
           <div class="drawer-inner">
@@ -1009,6 +1011,33 @@ function promptApiKey(){
   showSuccess('TMDb API key saved to this browser.');
 }
 
+// CARTO basemap key: same pattern — lives in this browser's localStorage only, never in Firestore or the file.
+const MAP_KEY_KEY='auteur_carto_key';
+let baseTileLayer=null, pinTileLayer=null, etPinTileLayer=null;
+function getMapKey(){return localStorage.getItem(MAP_KEY_KEY)||'';}
+function cartoTileUrl(){
+  const k=getMapKey();
+  return 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'+(k?'?key='+encodeURIComponent(k):'');
+}
+function updateMapKeyChip(){
+  const has=!!getMapKey();
+  const chip=$('map-key-chip');
+  if(chip){chip.classList.toggle('set',has);chip.classList.toggle('unset',!has);chip.textContent=has?'Map Key':'Set Map Key';}
+  const n=$('map-key-notice');if(n)n.style.display=has?'none':'block';
+}
+function refreshMapTiles(){
+  [baseTileLayer,pinTileLayer,etPinTileLayer].forEach(l=>{if(l)l.setUrl(cartoTileUrl());});
+}
+function promptMapKey(){
+  const val=window.prompt('Paste your free CARTO basemap key (get one at carto.com/basemaps/apikey — no account needed, it arrives by email).\nStored only in this browser — never sent to Firestore.',getMapKey());
+  if(val===null)return;
+  const trimmed=val.trim();
+  if(!trimmed){showError('No key entered.');return;}
+  localStorage.setItem(MAP_KEY_KEY,trimmed);
+  updateMapKeyChip();refreshMapTiles();
+  showSuccess('Map key saved to this browser.');
+}
+
 // ──────────────────────────────────────────────
 //  FIRESTORE — MOVIES
 // ──────────────────────────────────────────────
@@ -1316,7 +1345,7 @@ function openPinPicker(){
   $('pin-map').classList.add('open');
   if(!pinMap){
     pinMap=L.map('pin-map').setView([20.5937,78.9629],5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(pinMap);
+    pinTileLayer=L.tileLayer(cartoTileUrl(),{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(pinMap);
     pinMap.on('click',e=>{
       $('tlf-new-lat').value=e.latlng.lat.toFixed(6);
       $('tlf-new-lng').value=e.latlng.lng.toFixed(6);
@@ -1468,7 +1497,7 @@ function openEditPinPicker(){
   $('et-pin-map').classList.add('open');
   if(!etPinMap){
     etPinMap=L.map('et-pin-map').setView([20.5937,78.9629],5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(etPinMap);
+    etPinTileLayer=L.tileLayer(cartoTileUrl(),{attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(etPinMap);
     etPinMap.on('click',e=>{
       $('et-new-lat').value=e.latlng.lat.toFixed(6);
       $('et-new-lng').value=e.latlng.lng.toFixed(6);
@@ -2246,7 +2275,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEditModal();cl
 // ──────────────────────────────────────────────
 function initLeafletMap(){
   leafletMap=L.map('leaflet-map',{zoomControl:true}).setView([20.5937,78.9629],5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap contributors © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(leafletMap);
+  baseTileLayer=L.tileLayer(cartoTileUrl(),{attribution:'© OpenStreetMap contributors © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(leafletMap);
   markersLayer=L.layerGroup().addTo(leafletMap);
   renderTheatreMarkers();
 }
@@ -2558,7 +2587,7 @@ function renderWatchlist(){
 //  BOOT — always show dashboard, Firestore loads data
 // ──────────────────────────────────────────────
 (function boot(){
-  updateKeyChip();
+  updateKeyChip();updateMapKeyChip();
   renderFormatChips();
   renderLogTagsList();renderLogTagPresets();
   hide('upload-section');
